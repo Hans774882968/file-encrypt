@@ -18,6 +18,7 @@ module.exports = {
     'max-len': 'warn',
     'no-mixed-operators': 'off',
     'import/prefer-default-export': 'warn',
+    'no-param-reassign': 'warn',
   },
   overrides: [
     {

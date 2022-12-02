@@ -11,7 +11,8 @@
         :src="decryptResultImg"
         :preview-src-list="[decryptResultImg]">
       </el-image>
-      <player v-if="decryptResultVideo" :videoData="decryptResultVideo" />
+      <video-player v-if="decryptResultVideo" :videoData="decryptResultVideo" />
+      <audio-player v-if="decryptResultAudio" :audioData="decryptResultAudio" />
     </div>
   </div>
 </template>
@@ -19,20 +20,25 @@
 <script>
 import Encrypt from './Encrypt.vue';
 import Decrypt from './Decrypt.vue';
-import Player from './Player.vue';
-import { isPNG, isJPG, isMP4 } from '../utils/fileJudge';
+import VideoPlayer from './VideoPlayer.vue';
+import AudioPlayer from './AudioPlayer.vue';
+import {
+  isPNG, isJPG, isMP4, isPDF, isMP3, isLegalHCTFFile,
+} from '../utils/fileJudge';
 
 export default {
   name: 'HelloWorld',
   components: {
     Encrypt,
     Decrypt,
-    Player,
+    VideoPlayer,
+    AudioPlayer,
   },
   data() {
     return {
       decryptResultImg: null,
       decryptResultVideo: null,
+      decryptResultAudio: null,
     };
   },
   methods: {
@@ -40,8 +46,14 @@ export default {
       const decryptResult = new Uint8Array(await decryptResultBlob.arrayBuffer());
       if (isPNG(decryptResult) || isJPG(decryptResult)) {
         this.decryptResultImg = URL.createObjectURL(decryptResultBlob);
-      } else if (isMP4(decryptResult)) {
+      } else if (await isMP4(decryptResult)) {
         this.decryptResultVideo = URL.createObjectURL(decryptResultBlob);
+      } else if (await isMP3(decryptResult)) {
+        this.decryptResultAudio = URL.createObjectURL(decryptResultBlob);
+      } else if (isLegalHCTFFile(decryptResult)) {
+        this.$message.success('hctf文件');
+      } else if (await isPDF(decryptResult)) {
+        this.$message.success('pdf文件');
       } else {
         this.$message({
           message: '未知的文件类型',

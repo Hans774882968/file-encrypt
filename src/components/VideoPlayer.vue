@@ -8,7 +8,7 @@
 import videojs from 'video.js';
 
 export default {
-  name: 'Player',
+  name: 'VideoPlayer',
   props: {
     videoData: {
       type: String,

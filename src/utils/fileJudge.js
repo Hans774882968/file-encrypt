@@ -1,9 +1,10 @@
+import { fileTypeFromBuffer } from 'file-type';
 import { fileHeader, isUint8ArrayEqual } from './bin';
 
 export function isLegalHCTFFile(ab) {
   const u8Array = new Uint8Array(ab);
   if (u8Array.length < 8) return false;
-  const dv = new DataView(ab);
+  const dv = new DataView(ab instanceof Uint8Array ? ab.buffer : ab);
   if (!isUint8ArrayEqual(u8Array.slice(0, 4), fileHeader)) return false;
   const keyLength = dv.getUint32(4, true);
   if (u8Array.length - 8 < keyLength) return false;
@@ -26,7 +27,17 @@ export function isJPG(ab) {
   return true;
 }
 
-// eslint-disable-next-line no-unused-vars
-export function isMP4(ab) {
-  return true;
+export async function isMP4(ab) {
+  const fileTypeResult = await fileTypeFromBuffer(ab);
+  return fileTypeResult && fileTypeResult.ext === 'mp4';
+}
+
+export async function isMP3(ab) {
+  const fileTypeResult = await fileTypeFromBuffer(ab);
+  return fileTypeResult && fileTypeResult.ext === 'mp3';
+}
+
+export async function isPDF(ab) {
+  const fileTypeResult = await fileTypeFromBuffer(ab);
+  return fileTypeResult && fileTypeResult.ext === 'pdf';
 }

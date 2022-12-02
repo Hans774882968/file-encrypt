@@ -28,3 +28,90 @@ yarn lint
 
 ### Customize configuration
 See [Configuration Reference](https://cli.vuejs.org/config/).
+
+## 安装file-type
+安装这个也太难受了……首先`yarn add file-type`，然后`import { fileTypeFromBuffer } from 'file-type';`，不出意外你会得到错误：
+
+```
+Syntax Error: Reading from "node:buffer" is not handled by plugins (Unhandled scheme).
+Webpack supports "data:" and "file:" URIs by default.
+You may need an additional plugin to handle "node:" URIs.
+
+Syntax Error: Reading from "node:stream" is not handled by plugins (Unhandled scheme).
+Webpack supports "data:" and "file:" URIs by default.
+You may need an additional plugin to handle "node:" URIs.
+```
+
+经过漫长的探索，发现并不需要把项目改造成ESM，也就是不需要在`package.json`中加`type: "module"`。只需在运行时把`import {Readable as ReadableStream} from 'node:stream'`的`node:stream`重写为`stream`。怎么做到这件事呢？用webpack插件`NormalModuleReplacementPlugin`，它在`vue.config.js`的配置写法如下：
+
+```js
+{
+  // ...
+  configureWebpack: {
+    plugins: [
+      new webpack.NormalModuleReplacementPlugin(/node:/, (resource) => {
+        resource.request = resource.request.replace(/^node:/, '');
+      }),
+    ],
+    resolve: {
+      fallback: { stream: require.resolve('stream-browserify') },
+    },
+  },
+  // ...
+}
+```
+
+如果不加`resolve.fallback`，则你还会见到下一个错误：不认识`stream`。这是因为我们用的webpack版本是最新的`5.75.0`，而这个版本已经不提供node核心包的polyfill。因此我们需要自己添加`stream`的polyfill。
+
+1. 如上所述，加`resolve.fallback`。
+2. `yarn add stream-browserify`。
+
+接下来不出意外就能正常运行了。
+
+## Jest不支持导入`file-type`（未解决）
+版本：`"file-type": "^18.0.0",`
+
+一开始是（以`strtok3`为例）：
+
+```
+({"Object.<anonymous>":function(module,exports,require,__dirname,__filename,jest){import { ReadStreamTokenizer } from './ReadStreamTokenizer.js';
+SyntaxError: Cannot use import statement outside a module
+```
+
+后来`jest`配置了
+```js
+transformIgnorePatterns: [],
+```
+
+错误就变成了
+
+```
+Cannot find module 'strtok3/core' from 'node_modules/file-type/core.js'
+```
+
+可参考的链接：https://stackoverflow.com/questions/70325365/importing-pure-esm-module-in-ts-project-fails-jest-test-with-import-error
+
+根据上述链接，把`node_modules/file-type/core.js`的`import * as strtok3 from 'strtok3/core';`改成`import * as strtok3 from 'strtok3/lib/core';`，发现确实能解决问题。但这个解法不太好。是否给这个库发一个MR比较好？
+
+接下来`yarn build`，发现会报错：
+
+```
+Module not found: Error: Package path ./lib/core is not exported from package ./node_modules/strtok3 (see exports field in ./node_modules/strtok3/package.json)
+```
+
+这是因为我们刚刚改了import方式。我们需要进一步地修改`./node_modules/strtok3/package.json`的`exports`属性，加一行：
+
+```json
+exports: {
+  // ...
+  "./core": "./lib/core.js", // 已有
+  "./lib/core": "./lib/core.js"
+}
+```
+
+接下来再次`yarn build`即可。
+
+总结上面的操作：
+1. jest`transformIgnorePatterns: [],`
+2. `node_modules/file-type/core.js`的`import * as strtok3 from 'strtok3/core';`改成`import * as strtok3 from 'strtok3/lib/core';`
+3. strtok3添加`"./lib/core": "./lib/core.js"`
