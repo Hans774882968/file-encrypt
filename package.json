@@ -10,8 +10,10 @@
   },
   "dependencies": {
     "core-js": "^3.8.3",
+    "video.js": "^7.20.3",
     "vue": "^3.2.13",
-    "vue-router": "^4.0.3"
+    "vue-router": "^4.0.3",
+    "element-plus": "^2.2.25"
   },
   "devDependencies": {
     "@babel/core": "^7.12.16",
