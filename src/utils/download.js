@@ -1,9 +1,17 @@
-export function downloadFile(encryptResultBlob) {
+export function downloadFile(resultBlob, fileName) {
   const elementA = document.createElement('a');
-  elementA.setAttribute('href', URL.createObjectURL(encryptResultBlob));
-  elementA.setAttribute('download', 'test.hctf');
+  elementA.setAttribute('href', URL.createObjectURL(resultBlob));
+  elementA.setAttribute('download', fileName);
   elementA.style.display = 'none';
   document.body.appendChild(elementA);
   elementA.click();
   document.body.removeChild(elementA);
+}
+
+export function downloadEncryptFile(encryptResultBlob, fileName = 'test.hctf') {
+  downloadFile(encryptResultBlob, fileName);
+}
+
+export function downloadDecryptFile(decryptResultBlob, fileName) {
+  downloadFile(decryptResultBlob, fileName);
 }

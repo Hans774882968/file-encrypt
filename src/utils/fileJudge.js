@@ -27,9 +27,9 @@ export function isJPG(ab) {
   return true;
 }
 
-export async function isMP4(ab) {
+export async function isVideo(ab) {
   const fileTypeResult = await fileTypeFromBuffer(ab);
-  return fileTypeResult && fileTypeResult.ext === 'mp4';
+  return fileTypeResult && ['mp4', 'flv', 'avi', 'mov'].includes(fileTypeResult.ext);
 }
 
 export async function isMP3(ab) {
@@ -40,4 +40,11 @@ export async function isMP3(ab) {
 export async function isPDF(ab) {
   const fileTypeResult = await fileTypeFromBuffer(ab);
   return fileTypeResult && fileTypeResult.ext === 'pdf';
+}
+
+export async function getBufferExt(ab) {
+  if (isLegalHCTFFile(ab)) return '.hctf';
+  const fileTypeResult = await fileTypeFromBuffer(ab);
+  if (!fileTypeResult || !fileTypeResult.ext) return '';
+  return `.${fileTypeResult.ext}`;
 }

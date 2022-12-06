@@ -12,6 +12,7 @@
     "core-js": "^3.8.3",
     "element-plus": "^2.2.25",
     "file-type": "^18.0.0",
+    "path-browserify": "^1.0.1",
     "stream-browserify": "^3.0.0",
     "video.js": "^7.20.3",
     "vue": "^3.2.13",

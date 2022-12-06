@@ -10,7 +10,10 @@ module.exports = defineConfig({
       }),
     ],
     resolve: {
-      fallback: { stream: require.resolve('stream-browserify') },
+      fallback: {
+        stream: require.resolve('stream-browserify'),
+        path: require.resolve('path-browserify'),
+      },
     },
   },
 });

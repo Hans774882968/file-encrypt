@@ -115,3 +115,6 @@ exports: {
 1. jest`transformIgnorePatterns: [],`
 2. `node_modules/file-type/core.js`的`import * as strtok3 from 'strtok3/core';`改成`import * as strtok3 from 'strtok3/lib/core';`
 3. strtok3添加`"./lib/core": "./lib/core.js"`
+
+## TODO
+1. 添加自定义密钥功能。

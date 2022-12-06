@@ -29,7 +29,7 @@ import Decrypt from './Decrypt.vue';
 import VideoPlayer from './VideoPlayer.vue';
 import AudioPlayer from './AudioPlayer.vue';
 import {
-  isPNG, isJPG, isMP4, isPDF, isMP3, isLegalHCTFFile,
+  isPNG, isJPG, isPDF, isMP3, isLegalHCTFFile, isVideo,
 } from '../utils/fileJudge';
 
 export default {
@@ -48,23 +48,26 @@ export default {
     };
   },
   methods: {
+    clearDecryptResult() {
+      this.decryptResultImg = null;
+      this.decryptResultVideo = null;
+      this.decryptResultAudio = null;
+    },
     async getDecryptResult(decryptResultBlob) {
+      this.clearDecryptResult();
       const decryptResult = new Uint8Array(await decryptResultBlob.arrayBuffer());
       if (isPNG(decryptResult) || isJPG(decryptResult)) {
         this.decryptResultImg = URL.createObjectURL(decryptResultBlob);
-      } else if (await isMP4(decryptResult)) {
+      } else if (await isVideo(decryptResult)) {
         this.decryptResultVideo = URL.createObjectURL(decryptResultBlob);
       } else if (await isMP3(decryptResult)) {
         this.decryptResultAudio = URL.createObjectURL(decryptResultBlob);
       } else if (isLegalHCTFFile(decryptResult)) {
-        this.$message.success('hctf文件');
+        this.$message.success('hctf文件，请继续解密');
       } else if (await isPDF(decryptResult)) {
         this.$message.success('pdf文件');
       } else {
-        this.$message({
-          message: '未知的文件类型',
-          type: 'warning',
-        });
+        this.$message.warning('未知的文件类型');
       }
     },
   },
