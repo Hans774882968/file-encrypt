@@ -6,13 +6,19 @@
     </div>
     <div class="viewers">
       <el-image
-        class="img-view"
         v-if="decryptResultImg"
+        class="img-view"
         :src="decryptResultImg"
-        :preview-src-list="[decryptResultImg]">
-      </el-image>
-      <video-player v-if="decryptResultVideo" :videoData="decryptResultVideo" />
-      <audio-player v-if="decryptResultAudio" :audioData="decryptResultAudio" />
+        :preview-src-list="[decryptResultImg]"
+      />
+      <video-player
+        v-if="decryptResultVideo"
+        :video-data="decryptResultVideo"
+      />
+      <audio-player
+        v-if="decryptResultAudio"
+        :audio-data="decryptResultAudio"
+      />
     </div>
   </div>
 </template>

@@ -1,6 +1,10 @@
 <template>
   <div>
-    <video ref="videoPlayer" class="video-js" muted></video>
+    <video
+      ref="videoPlayer"
+      class="video-js"
+      muted
+    />
   </div>
 </template>
 
@@ -12,6 +16,7 @@ export default {
   props: {
     videoData: {
       type: String,
+      required: true,
     },
   },
   data() {

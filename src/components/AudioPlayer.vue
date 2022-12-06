@@ -12,6 +12,7 @@ export default {
   props: {
     audioData: {
       type: String,
+      required: true,
     },
   },
 };

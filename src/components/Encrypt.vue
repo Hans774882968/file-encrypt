@@ -1,6 +1,12 @@
 <template>
-  <el-upload :on-change="handleSelectFile" action="" :auto-upload="false">
-    <el-button type="primary">加密文件</el-button>
+  <el-upload
+    :on-change="handleSelectFile"
+    action=""
+    :auto-upload="false"
+  >
+    <el-button type="primary">
+      加密文件
+    </el-button>
   </el-upload>
 </template>
 

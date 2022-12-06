@@ -1,6 +1,12 @@
 <template>
-  <el-upload :on-change="handleSelectFile" action="" :auto-upload="false">
-    <el-button type="primary">解密文件</el-button>
+  <el-upload
+    :on-change="handleSelectFile"
+    action=""
+    :auto-upload="false"
+  >
+    <el-button type="primary">
+      解密文件
+    </el-button>
   </el-upload>
 </template>
 
@@ -10,6 +16,7 @@ import { isLegalHCTFFile } from '../utils/fileJudge';
 
 export default {
   name: 'Decrypt',
+  emits: ['decrypted'],
   data() {
     return {
       curArrayBuffer: null,
