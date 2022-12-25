@@ -24,12 +24,13 @@
 </template>
 
 <script>
+import { fileTypeFromBuffer } from 'file-type';
 import Encrypt from './Encrypt.vue';
 import Decrypt from './Decrypt.vue';
 import VideoPlayer from './VideoPlayer.vue';
 import AudioPlayer from './AudioPlayer.vue';
 import {
-  isPNG, isJPG, isPDF, isMP3, isLegalHCTFFile, isVideo,
+  isPNG, isJPG, isPDF, isMP3, isLegalHCTFFile, isVideo, isExcel,
 } from '../utils/fileJudge';
 
 export default {
@@ -56,16 +57,19 @@ export default {
     async getDecryptResult(decryptResultBlob) {
       this.clearDecryptResult();
       const decryptResult = new Uint8Array(await decryptResultBlob.arrayBuffer());
+      const fileTypeResult = await fileTypeFromBuffer(decryptResult);
       if (isPNG(decryptResult) || isJPG(decryptResult)) {
         this.decryptResultImg = URL.createObjectURL(decryptResultBlob);
-      } else if (await isVideo(decryptResult)) {
+      } else if (await isVideo(fileTypeResult)) {
         this.decryptResultVideo = URL.createObjectURL(decryptResultBlob);
-      } else if (await isMP3(decryptResult)) {
+      } else if (await isMP3(fileTypeResult)) {
         this.decryptResultAudio = URL.createObjectURL(decryptResultBlob);
       } else if (isLegalHCTFFile(decryptResult)) {
         this.$message.success('hctf文件，请继续解密');
-      } else if (await isPDF(decryptResult)) {
+      } else if (await isPDF(fileTypeResult)) {
         this.$message.success('pdf文件');
+      } else if (await isExcel(fileTypeResult)) {
+        this.$message.success('Excel文件');
       } else {
         this.$message.warning('未知的文件类型');
       }

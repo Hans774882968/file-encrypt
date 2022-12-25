@@ -28,18 +28,39 @@ export function isJPG(ab) {
 }
 
 export async function isVideo(ab) {
+  if (!ab) return false;
+  if (ab.ext && typeof ab.ext === 'string') {
+    return ['mp4', 'flv', 'avi', 'mov'].includes(ab.ext);
+  }
   const fileTypeResult = await fileTypeFromBuffer(ab);
   return fileTypeResult && ['mp4', 'flv', 'avi', 'mov'].includes(fileTypeResult.ext);
 }
 
 export async function isMP3(ab) {
+  if (!ab) return false;
+  if (ab.ext && typeof ab.ext === 'string') {
+    return ab.ext === 'mp3';
+  }
   const fileTypeResult = await fileTypeFromBuffer(ab);
   return fileTypeResult && fileTypeResult.ext === 'mp3';
 }
 
 export async function isPDF(ab) {
+  if (!ab) return false;
+  if (ab.ext && typeof ab.ext === 'string') {
+    return ab.ext === 'pdf';
+  }
   const fileTypeResult = await fileTypeFromBuffer(ab);
   return fileTypeResult && fileTypeResult.ext === 'pdf';
+}
+
+export async function isExcel(ab) {
+  if (!ab) return false;
+  if (ab.ext && typeof ab.ext === 'string') {
+    return ['xlsx', 'xls'].includes(ab.ext);
+  }
+  const fileTypeResult = await fileTypeFromBuffer(ab);
+  return fileTypeResult && ['xlsx', 'xls'].includes(fileTypeResult.ext);
 }
 
 export async function getBufferExt(ab) {

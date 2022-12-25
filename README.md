@@ -29,6 +29,13 @@ yarn lint
 ### Customize configuration
 See [Configuration Reference](https://cli.vuejs.org/config/).
 
+## 引言
+我们可能会希望某些文件仅在查看时才解密，而明文数据总是不出现在硬盘中，类似于加壳的可执行文件。为了实现这一点，我能想到的技术栈有：前端、pyqt5（python）、qt（cpp）。我最熟悉前端技术栈，而且后两者的工作量看上去太大了，所以这个demo选择用前端技术栈实现。为了尽快出成果，我又选用了最熟悉的`Vue2 + element-plus（因为安装的是Vue3）`，后续可考虑用`Vue3 script setup`重构。
+
+下面仅简单讲述实现上的注意点，其余细节佬们可查看代码，[GitHub传送门](https://github.com/Hans774882968/file-encrypt)。
+
+样式等方面都没有经过设计，让佬们见笑了～
+
 ## 安装file-type
 安装这个也太难受了……首先`yarn add file-type`，然后`import { fileTypeFromBuffer } from 'file-type';`，不出意外你会得到错误：
 
@@ -68,7 +75,7 @@ You may need an additional plugin to handle "node:" URIs.
 
 接下来不出意外就能正常运行了。
 
-## Jest不支持导入`file-type`（未解决）
+## Jest不支持导入`file-type`（未完美解决）
 版本：`"file-type": "^18.0.0",`
 
 一开始是（以`strtok3`为例）：
@@ -114,7 +121,8 @@ exports: {
 总结上面的操作：
 1. jest`transformIgnorePatterns: [],`
 2. `node_modules/file-type/core.js`的`import * as strtok3 from 'strtok3/core';`改成`import * as strtok3 from 'strtok3/lib/core';`
-3. strtok3添加`"./lib/core": "./lib/core.js"`
+3. node_modules，strtok3添加`"./lib/core": "./lib/core.js"`
 
 ## TODO
-1. 添加自定义密钥功能。
+1. 添加多轮加密功能。
+2. 用`Vue3 script setup`重构。

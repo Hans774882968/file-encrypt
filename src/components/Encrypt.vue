@@ -49,7 +49,6 @@
 
 <script>
 import path from 'node:path';
-import { ElIcon } from 'element-plus';
 import { Upload, Download, QuestionFilled } from '@element-plus/icons-vue';
 import { fileToArrayBuffer, enc } from '../utils/bin';
 import { downloadEncryptFile } from '../utils/download';
@@ -57,7 +56,6 @@ import { downloadEncryptFile } from '../utils/download';
 export default {
   name: 'Encrypt',
   components: {
-    ElIcon,
     Upload,
     Download,
     QuestionFilled,
