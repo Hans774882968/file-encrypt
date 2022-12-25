@@ -6,23 +6,30 @@
       :auto-upload="false"
     >
       <el-button type="primary" :loading="handling" :disabled="handling">
-        解密文件
+        解密文件<el-icon class="el-icon--right"><Upload /></el-icon>
       </el-button>
     </el-upload>
     <el-button v-if="decryptResultBlob" type="primary" @click="save">
-      保存文件
+      保存文件<el-icon class="el-icon--right"><Download /></el-icon>
     </el-button>
   </div>
 </template>
 
 <script>
 import path from 'node:path';
+import { ElIcon } from 'element-plus';
+import { Upload, Download } from '@element-plus/icons-vue';
 import { fileToArrayBuffer, getDecryptedU8Array } from '../utils/bin';
 import { isLegalHCTFFile, getBufferExt } from '../utils/fileJudge';
 import { downloadDecryptFile } from '../utils/download';
 
 export default {
   name: 'Decrypt',
+  components: {
+    ElIcon,
+    Upload,
+    Download,
+  },
   emits: ['decrypted'],
   data() {
     return {

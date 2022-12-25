@@ -74,13 +74,13 @@ export default {
 };
 </script>
 
-<style scoped>
+<style lang="less" scoped>
 .hello {
   display: flex;
   gap: 20px;
   padding: 20px;
 }
-.hello * {
+.hello > * {
   flex: 1;
 }
 .img-view {
