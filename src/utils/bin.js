@@ -19,14 +19,22 @@ export function isUint8ArrayEqual(a1, a2) {
   return a1.length === a2.length && a1.every((v, i) => v === a2[i]);
 }
 
-export function enc(ab, _encryptKey = fileHeader) {
+export function getEncryptedU8Array(ab, encryptKey) {
+  const u8Array = new Uint8Array(ab);
+  const encryptedData = u8Array.map((b, i) => b ^ encryptKey[i % encryptKey.length]);
+  return new Uint8Array([...fileHeader, ...uint32ToUint8Array(encryptKey.length), ...encryptKey, ...encryptedData]);
+}
+
+export function enc(ab, _encryptKey = fileHeader, encryptRoundCount = 1) {
   let encryptKey = _encryptKey || fileHeader;
   if (typeof encryptKey === 'string') {
     encryptKey = new TextEncoder().encode(encryptKey);
   }
-  const u8Array = new Uint8Array(ab);
-  const encryptedData = u8Array.map((b, i) => b ^ encryptKey[i % encryptKey.length]);
-  return new Blob([fileHeader, uint32ToUint8Array(encryptKey.length), encryptKey, encryptedData]);
+  let encryptedData = ab;
+  for (let i = 0; i < encryptRoundCount; ++i) {
+    encryptedData = getEncryptedU8Array(encryptedData, encryptKey);
+  }
+  return new Blob([encryptedData]);
 }
 
 export function getDecryptedU8Array(ab) {

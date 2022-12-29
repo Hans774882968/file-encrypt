@@ -37,6 +37,7 @@ module.exports = {
       },
     }],
     'vue/singleline-html-element-content-newline': ['off'],
+    'no-plusplus': ['error', { allowForLoopAfterthoughts: true }],
   },
   overrides: [
     {
