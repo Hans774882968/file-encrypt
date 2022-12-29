@@ -8,45 +8,49 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import videojs from 'video.js';
+import {
+  computed, onBeforeUnmount, onMounted, ref, toRefs,
+} from 'vue';
 
+const props = defineProps({
+  videoData: {
+    type: String,
+    required: true,
+  },
+});
+const { videoData } = toRefs(props);
+
+const player = ref(null);
+const videoPlayer = ref(null);
+
+const options = computed(() => ({
+  autoplay: true,
+  controls: true,
+  sources: [
+    {
+      src: videoData.value,
+      type: 'video/mp4',
+    },
+  ],
+}));
+
+onMounted(() => {
+  player.value = videojs(videoPlayer.value, options.value, () => {
+    player.value.log('onPlayerReady', options.value);
+  });
+});
+
+onBeforeUnmount(() => {
+  if (player.value) {
+    player.value.dispose();
+  }
+});
+</script>
+
+<script>
 export default {
   name: 'VideoPlayer',
-  props: {
-    videoData: {
-      type: String,
-      required: true,
-    },
-  },
-  data() {
-    return {
-      player: null,
-    };
-  },
-  computed: {
-    options() {
-      return {
-        autoplay: true,
-        controls: true,
-        sources: [
-          {
-            src: this.videoData,
-            type: 'video/mp4',
-          },
-        ],
-      };
-    },
-  },
-  mounted() {
-    this.player = videojs(this.$refs.videoPlayer, this.options, () => {
-      this.player.log('onPlayerReady', this);
-    });
-  },
-  beforeUnmount() {
-    if (this.player) {
-      this.player.dispose();
-    }
-  },
 };
 </script>

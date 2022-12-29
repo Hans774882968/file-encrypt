@@ -15,54 +15,51 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import path from 'node:path';
-import { ElIcon } from 'element-plus';
+import { ElIcon, ElMessage } from 'element-plus';
 import { Upload, Download } from '@element-plus/icons-vue';
+import { ref } from 'vue';
 import { fileToArrayBuffer, getDecryptedU8Array } from '../utils/bin';
 import { isLegalHCTFFile, getBufferExt } from '../utils/fileJudge';
 import { downloadDecryptFile } from '../utils/download';
 
+const emit = defineEmits(['decrypted']);
+
+const file = ref(null);
+const decryptResultData = ref(null);
+const decryptResultBlob = ref(null);
+const handling = ref(false);
+
+async function handleSelectFile(_file) {
+  if (handling.value) return;
+  handling.value = true;
+  file.value = _file;
+  await decrypt(_file);
+  handling.value = false;
+}
+
+async function decrypt(file) {
+  decryptResultBlob.value = null;
+  const curArrayBuffer = await fileToArrayBuffer(file.raw);
+  if (!isLegalHCTFFile(curArrayBuffer)) {
+    ElMessage.error('不是合法的 .hctf 文件！');
+    return;
+  }
+  decryptResultData.value = getDecryptedU8Array(curArrayBuffer);
+  decryptResultBlob.value = new Blob([decryptResultData.value]);
+  emit('decrypted', decryptResultBlob.value);
+}
+
+async function save() {
+  const fileExt = await getBufferExt(decryptResultData.value);
+  const fileName = `${path.parse(file.value.name).name || 'test'}${fileExt}`;
+  downloadDecryptFile(decryptResultBlob.value, fileName);
+}
+</script>
+
+<script>
 export default {
   name: 'Decrypt',
-  components: {
-    ElIcon,
-    Upload,
-    Download,
-  },
-  emits: ['decrypted'],
-  data() {
-    return {
-      file: null,
-      decryptResultData: null,
-      decryptResultBlob: null,
-      handling: false,
-    };
-  },
-  methods: {
-    async handleSelectFile(file) {
-      if (this.handling) return;
-      this.handling = true;
-      this.file = file;
-      await this.decrypt(file);
-      this.handling = false;
-    },
-    async decrypt(file) {
-      this.decryptResultBlob = null;
-      const curArrayBuffer = await fileToArrayBuffer(file.raw);
-      if (!isLegalHCTFFile(curArrayBuffer)) {
-        this.$message.error('不是合法的 .hctf 文件！');
-        return;
-      }
-      this.decryptResultData = getDecryptedU8Array(curArrayBuffer);
-      this.decryptResultBlob = new Blob([this.decryptResultData]);
-      this.$emit('decrypted', this.decryptResultBlob);
-    },
-    async save() {
-      const fileExt = await getBufferExt(this.decryptResultData);
-      const fileName = `${path.parse(this.file.name).name || 'test'}${fileExt}`;
-      downloadDecryptFile(this.decryptResultBlob, fileName);
-    },
-  },
 };
 </script>

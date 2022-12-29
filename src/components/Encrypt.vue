@@ -47,61 +47,51 @@
   </el-form>
 </template>
 
-<script>
+<script setup>
 import path from 'node:path';
 import { Upload, Download, QuestionFilled } from '@element-plus/icons-vue';
+import { computed, ref } from 'vue';
 import { fileToArrayBuffer, enc } from '../utils/bin';
 import { downloadEncryptFile } from '../utils/download';
 
+const emit = defineEmits(['encrypted']);
+
+const encryptResultBlob = ref(null);
+const handling = ref(false);
+const options = ref({
+  file: null,
+  useCustomKey: false,
+  key: '',
+});
+
+const encryptKey = computed(() => (options.value.useCustomKey ? options.value.key : ''));
+const keyLength = computed(() => new TextEncoder().encode(options.value.key).length);
+const customKeyAutoSize = computed(() => ({ minRows: 3, maxRows: 10 }));
+
+async function encrypt(file) {
+  encryptResultBlob.value = null;
+  const curArrayBuffer = await fileToArrayBuffer(file.raw);
+  encryptResultBlob.value = enc(curArrayBuffer, encryptKey.value);
+  emit('encrypted', encryptResultBlob.value);
+}
+
+async function handleSelectFile(file) {
+  if (handling.value) return;
+  handling.value = true;
+  options.value.file = file;
+  await encrypt(file);
+  handling.value = false;
+}
+
+function save() {
+  const fileName = `${path.parse(options.value.file.name).name || 'test'}.hctf`;
+  downloadEncryptFile(encryptResultBlob.value, fileName);
+}
+</script>
+
+<script>
 export default {
   name: 'Encrypt',
-  components: {
-    Upload,
-    Download,
-    QuestionFilled,
-  },
-  emits: ['encrypted'],
-  data() {
-    return {
-      encryptResultBlob: null,
-      handling: false,
-      options: {
-        file: null,
-        useCustomKey: false,
-        key: '',
-      },
-    };
-  },
-  computed: {
-    encryptKey() {
-      return this.options.useCustomKey ? this.options.key : '';
-    },
-    keyLength() {
-      return new TextEncoder().encode(this.options.key).length;
-    },
-    customKeyAutoSize() {
-      return { minRows: 3, maxRows: 10 };
-    },
-  },
-  methods: {
-    async handleSelectFile(file) {
-      if (this.handling) return;
-      this.handling = true;
-      this.options.file = file;
-      await this.encrypt(file);
-      this.handling = false;
-    },
-    async encrypt(file) {
-      this.encryptResultBlob = null;
-      const curArrayBuffer = await fileToArrayBuffer(file.raw);
-      this.encryptResultBlob = enc(curArrayBuffer, this.encryptKey);
-      this.$emit('encrypted', this.encryptResultBlob);
-    },
-    save() {
-      const fileName = `${path.parse(this.options.file.name).name || 'test'}.hctf`;
-      downloadEncryptFile(this.encryptResultBlob, fileName);
-    },
-  },
 };
 </script>
 

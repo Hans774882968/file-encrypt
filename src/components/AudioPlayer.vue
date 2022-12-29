@@ -6,14 +6,20 @@
   </div>
 </template>
 
+<script setup>
+import { toRefs } from 'vue';
+
+const props = defineProps({
+  audioData: {
+    type: String,
+    required: true,
+  },
+});
+const { audioData } = toRefs(props);
+</script>
+
 <script>
 export default {
   name: 'AudioPlayer',
-  props: {
-    audioData: {
-      type: String,
-      required: true,
-    },
-  },
 };
 </script>
