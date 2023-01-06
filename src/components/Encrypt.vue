@@ -21,9 +21,11 @@
         <el-tooltip
           class="item"
           effect="dark"
-          content="1. 非ASCII字符使用UTF-8编码。2. 若勾选“使用自定义密钥”但不输入密钥，则仍使用默认密钥。"
           placement="right"
         >
+          <template #content>
+            1. 非ASCII字符使用UTF-8编码。<br>2. 若勾选“使用自定义密钥”但不输入密钥，则仍使用默认密钥。
+          </template>
           <el-icon :size="20">
             <question-filled />
           </el-icon>

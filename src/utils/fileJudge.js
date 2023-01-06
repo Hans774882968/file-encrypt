@@ -36,22 +36,29 @@ export async function isVideo(ab) {
   return fileTypeResult && ['mp4', 'flv', 'avi', 'mov'].includes(fileTypeResult.ext);
 }
 
-export async function isMP3(ab) {
+export async function isSpecificExt(ab, ext) {
   if (!ab) return false;
   if (ab.ext && typeof ab.ext === 'string') {
-    return ab.ext === 'mp3';
+    return ab.ext === ext;
   }
   const fileTypeResult = await fileTypeFromBuffer(ab);
-  return fileTypeResult && fileTypeResult.ext === 'mp3';
+  return fileTypeResult && fileTypeResult.ext === ext;
 }
 
-export async function isPDF(ab) {
-  if (!ab) return false;
-  if (ab.ext && typeof ab.ext === 'string') {
-    return ab.ext === 'pdf';
-  }
-  const fileTypeResult = await fileTypeFromBuffer(ab);
-  return fileTypeResult && fileTypeResult.ext === 'pdf';
+export function isMP3(ab) {
+  return isSpecificExt(ab, 'mp3');
+}
+
+export function isPDF(ab) {
+  return isSpecificExt(ab, 'pdf');
+}
+
+export function isGif(ab) {
+  return isSpecificExt(ab, 'gif');
+}
+
+export function isWebp(ab) {
+  return isSpecificExt(ab, 'webp');
 }
 
 export async function isExcel(ab) {

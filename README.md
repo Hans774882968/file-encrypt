@@ -124,5 +124,6 @@ exports: {
 3. node_modules，strtok3添加`"./lib/core": "./lib/core.js"`
 
 ## TODO
-1. 添加`webpack-obfuscator`
-2. 支持gif预览
+1. 添加`webpack-obfuscator`。
+2. 支持flv播放。
+3. 支持加密方法的选择。但是因为设计文件格式时没有预留位置，只能放弃了。
