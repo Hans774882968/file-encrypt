@@ -1,3 +1,5 @@
+import { isLegalHCTFFile } from './fileJudge';
+
 export function fileToArrayBuffer(file) {
   return new Promise((resolve) => {
     const fr = new FileReader();
@@ -47,7 +49,15 @@ export function getDecryptedU8Array(ab) {
   return decryptedData;
 }
 
-export function dec(ab) {
-  const decryptedData = getDecryptedU8Array(ab);
-  return new Blob([decryptedData]);
+export function dec(ab, decryptRoundCount = 1) {
+  let decryptedDataArrayBuffer = ab;
+  for (let i = 0; i < decryptRoundCount; ++i) {
+    if (!isLegalHCTFFile(decryptedDataArrayBuffer)) break;
+    decryptedDataArrayBuffer = getDecryptedU8Array(decryptedDataArrayBuffer).buffer;
+  }
+  const decryptedData = new Uint8Array(decryptedDataArrayBuffer);
+  return {
+    decryptResultData: decryptedData,
+    decryptResultBlob: new Blob([decryptedData]),
+  };
 }

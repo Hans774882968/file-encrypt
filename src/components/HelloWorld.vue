@@ -45,9 +45,9 @@ function clearDecryptResult() {
   decryptResultAudio.value = null;
 }
 
-async function getDecryptResult(decryptResultBlob) {
+async function getDecryptResult(decryptResultObject) {
   clearDecryptResult();
-  const decryptResult = new Uint8Array(await decryptResultBlob.arrayBuffer());
+  const { decryptResultData: decryptResult, decryptResultBlob } = decryptResultObject;
   const fileTypeResult = await fileTypeFromBuffer(decryptResult);
   if (isPNG(decryptResult) || isJPG(decryptResult)) {
     decryptResultImg.value = URL.createObjectURL(decryptResultBlob);
@@ -90,5 +90,10 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+:deep(.el-image__placeholder) {
+  background: url('../assets/loading.gif') no-repeat 50% 50%;
+  width: 100%;
+  height: 100%;
 }
 </style>

@@ -131,12 +131,6 @@ const customKeyAutoSize = computed(() => ({ minRows: 3, maxRows: 10 }));
 const encryptRoundCount = computed(() => (options.value.multiRoundEncryption ? options.value.encryptRoundCount : 1));
 
 async function encrypt(file) {
-  try {
-    await form.value.validate();
-  } catch (e) {
-    ElMessage.error('表单校验未通过！');
-    return;
-  }
   encryptResultBlob.value = null;
   const curArrayBuffer = await fileToArrayBuffer(file.raw);
   encryptResultBlob.value = enc(curArrayBuffer, encryptKey.value, encryptRoundCount.value);
@@ -144,6 +138,12 @@ async function encrypt(file) {
 }
 
 async function handleSelectFile(file) {
+  try {
+    await form.value.validate();
+  } catch (e) {
+    ElMessage.error('表单校验未通过！');
+    return;
+  }
   if (handling.value) return;
   handling.value = true;
   options.value.file = file;

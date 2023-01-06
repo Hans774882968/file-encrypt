@@ -124,5 +124,5 @@ exports: {
 3. node_modules，strtok3添加`"./lib/core": "./lib/core.js"`
 
 ## TODO
-1. 添加多轮加密功能。
-2. 用`Vue3 script setup`重构。
+1. 添加`webpack-obfuscator`
+2. 支持gif预览
