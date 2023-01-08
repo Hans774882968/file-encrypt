@@ -101,7 +101,7 @@ transformIgnorePatterns: [],
 Cannot find module 'strtok3/core' from 'node_modules/file-type/core.js'
 ```
 
-参考链接1：https://stackoverflow.com/questions/70325365/importing-pure-esm-module-in-ts-project-fails-jest-test-with-import-error
+[参考链接1](https://stackoverflow.com/questions/70325365/importing-pure-esm-module-in-ts-project-fails-jest-test-with-import-error)
 
 根据上述链接，把`node_modules/file-type/core.js`的`import * as strtok3 from 'strtok3/core';`改成`import * as strtok3 from 'strtok3/lib/core';`，发现确实能解决问题。但这个解法不太好。是否给这个库发一个MR比较好？
 
@@ -159,9 +159,9 @@ yarn add -D javascript-obfuscator webpack-obfuscator
 
 一般不建议`chunk-vendors`加混淆，所以要配置一下`excludes`项。对比一下加`excludes`前：`165.34s`，加`excludes`后：`28.45s`（这里`webpack-obfuscator`版本是`3.5.0`，OB版本是`3.2.7`）。
 
-`webpack-obfuscator`提供了loader和plugin两种用法，建议使用plugin。
+`webpack-obfuscator`提供了loader和plugin两种用法，建议使用plugin（踩坑心得😢）。
 
-但是逆它难度也不大……因为类名没有混淆，并且我们知道关键方法一定用到了`Uint8Array`，所以很快可以定位到关键代码。
+但是逆它难度依旧不大……因为类名没有混淆，并且我们知道关键方法一定用到了`Uint8Array`，所以很快可以定位到关键代码。
 
 加密：
 ```js
@@ -300,7 +300,7 @@ function _0x3cf840(_0x24310b, _0x55f6a9=0x1) {
 
 配置`excludes`后，`chunk-vendors`应该找不到产生NAG的代码。
 
-我主要参考了`webpack-obfuscator`源码的写法，参考链接3是`webpack-obfuscator`[导读](https://juejin.cn/post/7115700678764265503)。
+我主要参考了`webpack-obfuscator`源码的写法，参考链接3是`webpack-obfuscator`[导读](https://juejin.cn/post/7115700678764265503)。[传送门](https://github1s.com/javascript-obfuscator/webpack-obfuscator/blob/HEAD/plugin/index.ts)
 
 根据官方文档，`processAssets`hook的`PROCESS_ASSETS_STAGE_ADDITIONS`stage早于`webpack-obfuscator`使用的`PROCESS_ASSETS_STAGE_DEV_TOOLING`，所以我们在`PROCESS_ASSETS_STAGE_ADDITIONS`阶段来给`chunk-vendors`以外的代码添加内容。
 
@@ -323,7 +323,31 @@ class AddCopyrightPlugin {
 }
 ```
 
-最后，给大家一道简单题：对打包后的资源，使用Chrome Sources面板的替换功能，去除所有产生NAG的代码。
+### 支持多个代码块的插入
+我们怎能满足于单个代码块的插入？根据期望，我们稍微改造一下`AddCopyrightPlugin`的输入：
+- `options.copyrightFiles: string[]`，表示代码块文件的相对路径。我们希望各个代码块文件**按顺序执行**。
+- `options.inspectAssets: boolean`，如果为truthy，则把`assets[fileName]`输出，方便观察我们处理之后的代码。
+- `excludes?: string | string[]`，含义和`webpack-obfuscator`的第二个参数相同。
+
+这里的关键是，我们希望代码块尽量分布于`bodyToInsert`的不同空隙，这样才能保证，两个代码块必须分别破解。于是我们设计了这么一个算法：
+- 如果代码块数量`count <= bodyToInsert.length + 1`，那么需要一个由`lastInsertIndex`推出当前插入下标的递推式。
+- 否则，直接随机`count`个下标。
+
+这里的递推式我使用了
+```js
+const coeff = Math.random() * Math.min(2 * (i + 1) / count, 1);
+const curInsertIndex = lastInsertIndex + 1 + Math.floor(
+  coeff * (arrayLength - (count - i - 2) - (lastInsertIndex + 1)),
+);
+```
+
+但它的问题很大：`getInsertIndexes(300, 1900)`，很快就逼近了右侧，后面大多数元素都挨在一起。TODO：改进算法，解决这个问题。
+
+注意：
+1. 我们是按照原来的元素个数来分配插入的下标的，那么考虑到元素的增长，插入的位置应该调整为`insertIndexes[i] + totalInsertCount`。否则不能满足顺序插入的要求。
+2. 我们自己编写了一个禁止控制台的代码块，并传入了`options.copyrightFiles`。所以`disableConsoleOutput`可以设为true了。这样我们就做到了一件事：可以在输出NAG的代码之后，再禁止控制台。
+
+最后，因为OB早就被各位前端逆向佬们研究透彻了，所以给大家一道简单题：对打包后的资源，使用Chrome Sources面板的替换功能，去除所有产生NAG的代码。
 
 ## TODO
 1. 支持flv播放。

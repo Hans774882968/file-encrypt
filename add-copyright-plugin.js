@@ -1,51 +1,80 @@
 const { Compilation, sources } = require('webpack');
 const fs = require('fs');
+const path = require('path');
 const parser = require('@babel/parser');
 const generator = require('@babel/generator').default;
 const multimatch = require('multimatch');
 const { isCallExpression, isFunctionExpression, isBlockStatement } = require('@babel/types');
 
-function readCopyrightPrintCode() {
+function readCopyrightFileCode(copyrightFile) {
+  const copyrightFilePath = path.resolve(__dirname, copyrightFile);
   try {
-    return fs.readFileSync('./copyright-print.js', 'utf-8');
+    return fs.readFileSync(copyrightFilePath, 'utf-8');
   } catch (e) {
-    console.error('copyright-print.js not found', e);
+    console.error(`${copyrightFilePath} not found`, e);
     return '';
   }
+}
+
+function getInsertIndexes(count, arrayLength) {
+  const a = [];
+  if (count <= arrayLength + 1) {
+    let lastInsertIndex = -1;
+    for (let i = 0; i < count; ++i) {
+      const coeff = Math.random() * Math.min(2 * (i + 1) / count, 1);
+      const curInsertIndex = lastInsertIndex + 1 + Math.floor(
+        coeff * (arrayLength - (count - i - 2) - (lastInsertIndex + 1)),
+      );
+      a.push(curInsertIndex);
+      lastInsertIndex = curInsertIndex;
+    }
+  } else {
+    for (let i = 0; i < count; ++i) a.push(Math.floor(Math.random() * (arrayLength + 1)));
+    a.sort((x, y) => x - y);
+  }
+  return a;
 }
 
 class AddCopyrightPlugin {
   static allowedExtensions = ['.js'];
 
-  static copyrightCode = readCopyrightPrintCode();
-
-  constructor(excludes) {
+  constructor(options, excludes) {
+    this.options = options;
+    this.copyrightCodes = (options.copyrightFiles || [])
+      .map((copyrightFile) => readCopyrightFileCode(copyrightFile))
+      .filter((copyrightFileContent) => copyrightFileContent);
     this.excludes = excludes || [];
+    this.copyrightCodeASTs = this.copyrightCodes.map((code) => parser.parse(code));
   }
 
   shouldExclude(filePath) {
     return multimatch(filePath, this.excludes).length > 0;
   }
 
-  static insertCopyrightCode(inputCode) {
-    const copyrightCodeAST = parser.parse(AddCopyrightPlugin.copyrightCode);
-    const copyrightCodeBody = copyrightCodeAST.program.body;
+  insertCopyrightCode(inputCode) {
     const inputCodeAst = parser.parse(inputCode);
-    const inputCodeAstBody = inputCodeAst.program.body;
+    const inputCodeAstBodyArray = inputCodeAst.program.body;
 
-    const insert = (bodyToInsert) => {
-      const insertIndex = Math.floor(Math.random() * bodyToInsert.length);
-      bodyToInsert.splice(insertIndex, 0, ...copyrightCodeBody);
+    const getBodyToInsert = (inputCodeAstBody) => {
+      if (isCallExpression(inputCodeAstBody[0].expression)
+        && isFunctionExpression(inputCodeAstBody[0].expression.callee)
+        && isBlockStatement(inputCodeAstBody[0].expression.callee.body)) {
+        const bodyToInsert = inputCodeAstBody[0].expression.callee.body.body;
+        return bodyToInsert;
+      }
+      return inputCodeAstBody;
     };
+    const bodyToInsert = getBodyToInsert(inputCodeAstBodyArray);
 
-    if (isCallExpression(inputCodeAstBody[0].expression)
-      && isFunctionExpression(inputCodeAstBody[0].expression.callee)
-      && isBlockStatement(inputCodeAstBody[0].expression.callee.body)) {
-      const bodyToInsert = inputCodeAstBody[0].expression.callee.body.body;
-      insert(bodyToInsert);
-    } else {
-      insert(inputCodeAstBody);
-    }
+    const insertIndexes = getInsertIndexes(this.copyrightCodeASTs.length, bodyToInsert.length);
+
+    let totalInsertCount = 0;
+    this.copyrightCodeASTs.forEach((copyrightCodeAST, i) => {
+      const copyrightCodeBody = copyrightCodeAST.program.body;
+      bodyToInsert.splice(insertIndexes[i] + totalInsertCount, 0, ...copyrightCodeBody);
+      totalInsertCount += copyrightCodeBody.length;
+    });
+
     const { code } = generator(inputCodeAst);
     return code;
   }
@@ -67,8 +96,11 @@ class AddCopyrightPlugin {
               }
               const asset = compilation.assets[fileName];
               const inputCode = asset.source();
-              const outputCode = AddCopyrightPlugin.insertCopyrightCode(inputCode);
+              const outputCode = this.insertCopyrightCode(inputCode);
               assets[fileName] = new sources.RawSource(outputCode, false);
+              if (this.options.inspectAssets) {
+                fs.writeFileSync(`${fileName.substring(3, fileName.length - 3)}-inspect.js`, outputCode);
+              }
             });
           });
         },

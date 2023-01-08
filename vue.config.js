@@ -13,7 +13,12 @@ module.exports = defineConfig({
       new webpack.NormalModuleReplacementPlugin(/node:/, (resource) => {
         resource.request = resource.request.replace(/^node:/, '');
       }),
-      new AddCopyrightPlugin([chunkVendorsRelativePath]),
+      new AddCopyrightPlugin({
+        copyrightFiles: [
+          'copyright-print.js', 'copyright-nag.js', 'disable-console-output.js',
+        ],
+        inspectAssets: true,
+      }, [chunkVendorsRelativePath]),
       new WebpackObfuscator({
         compact: true,
         controlFlowFlattening: true,
@@ -22,7 +27,7 @@ module.exports = defineConfig({
         deadCodeInjectionThreshold: 0.4,
         debugProtection: false,
         debugProtectionInterval: 2000,
-        disableConsoleOutput: true,
+        disableConsoleOutput: false,
         domainLock: [],
         identifierNamesGenerator: 'hexadecimal',
         log: false,
