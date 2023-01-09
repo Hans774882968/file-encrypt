@@ -39,7 +39,7 @@ See [Configuration Reference](https://cli.vuejs.org/config/).
 ### TLDR
 1. vue3 setup CRUD。
 2. 在vue中配置webpack、webpack自定义插件。
-3. 懂得正向能让逆向更为顺利。
+3. 懂得正向能让逆向更为顺利。相应地，前端可以考虑把这些可能有利于“社工”的漏洞补上。
 
 ## 安装file-type
 安装这个也太难受了……首先`yarn add file-type`，然后`import { fileTypeFromBuffer } from 'file-type';`，不出意外你会得到错误：
@@ -161,7 +161,7 @@ yarn add -D javascript-obfuscator webpack-obfuscator
 
 `webpack-obfuscator`提供了loader和plugin两种用法，建议使用plugin（踩坑心得😢）。
 
-但是逆它难度依旧不大……因为类名没有混淆，并且我们知道关键方法一定用到了`Uint8Array`，所以很快可以定位到关键代码。
+但是逆它难度依旧不大……因为类名没有混淆，并且我们知道关键方法一定用到了`Uint8Array`，所以很快可以定位到关键代码。面对这个问题，我们在《将`className`替换为`window.className`》一节再写一个webpack插件来处理。
 
 加密：
 ```js
@@ -346,6 +346,47 @@ const curInsertIndex = lastInsertIndex + 1 + Math.floor(
 注意：
 1. 我们是按照原来的元素个数来分配插入的下标的，那么考虑到元素的增长，插入的位置应该调整为`insertIndexes[i] + totalInsertCount`。否则不能满足顺序插入的要求。
 2. 我们自己编写了一个禁止控制台的代码块，并传入了`options.copyrightFiles`。所以`disableConsoleOutput`可以设为true了。这样我们就做到了一件事：可以在输出NAG的代码之后，再禁止控制台。
+
+## 将className替换为window.className
+将`className`替换为`window.className`这个操作的目的是让OB的混淆发挥作用，达到隐藏JS标准内置对象的目的。
+
+特征匹配：
+- 当前节点`node`是`NewExpression`，且`node.callee`是`Identifier`。
+- 当前节点`node`是`BinaryExpression`，`node.operator`是`instanceof`，且`node.left`或`node.right`是`Identifier`。
+
+因为对`babel`的`path`了解太少，这里只好采用一个迂回的做法：先匹配`Identifier`，再看其`parent`是否符合上述特征。
+
+```js
+class RemoveSensitiveInfoPlugin extends OnlyProcessJSFilePlugin {
+  static classNameAddWindowPrefix(inputCode) {
+    const inputCodeAst = parser.parse(inputCode);
+
+    const replaceNode = (path, className) => {
+      // DataView -> window.window.DataView
+      const windowMemberNode = memberExpression(
+        memberExpression(identifier('window'), identifier('window')),
+        identifier(className),
+      );
+      path.replaceWith(windowMemberNode);
+    };
+    traverse(inputCodeAst, {
+      Identifier(path) {
+        const className = path.node.name;
+        if (!RemoveSensitiveInfoPlugin.sensitiveClassNames.includes(className)) return;
+        const parentNode = path.parentPath.node;
+        if (isNewExpression(parentNode)) {
+          replaceNode(path, className);
+        } else if (isBinaryExpression(parentNode) && parentNode.operator === 'instanceof') {
+          replaceNode(path, className);
+        }
+      },
+    });
+
+    const { code } = generator(inputCodeAst);
+    return code;
+  }
+}
+```
 
 最后，因为OB早就被各位前端逆向佬们研究透彻了，所以给大家一道简单题：对打包后的资源，使用Chrome Sources面板的替换功能，去除所有产生NAG的代码。
 

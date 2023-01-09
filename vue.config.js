@@ -2,6 +2,7 @@ const { defineConfig } = require('@vue/cli-service');
 const webpack = require('webpack');
 const path = require('path');
 const WebpackObfuscator = require('webpack-obfuscator');
+const RemoveSensitiveInfoPlugin = require('./remove-sensitive-info-plugin');
 const AddCopyrightPlugin = require('./add-copyright-plugin');
 
 const chunkVendorsRelativePath = path.join('js', 'chunk-vendors.**.js');
@@ -17,6 +18,9 @@ module.exports = defineConfig({
         copyrightFiles: [
           'copyright-print.js', 'copyright-nag.js', 'disable-console-output.js',
         ],
+        inspectAssets: true,
+      }, [chunkVendorsRelativePath]),
+      new RemoveSensitiveInfoPlugin({
         inspectAssets: true,
       }, [chunkVendorsRelativePath]),
       new WebpackObfuscator({

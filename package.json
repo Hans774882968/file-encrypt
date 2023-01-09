@@ -12,6 +12,7 @@
     "@babel/generator": "^7.20.7",
     "@babel/parser": "^7.20.7",
     "@babel/types": "^7.20.7",
+    "@babel/core": "^7.12.16",
     "@element-plus/icons-vue": "^2.0.10",
     "core-js": "^3.8.3",
     "element-plus": "^2.2.25",
@@ -25,7 +26,6 @@
     "webpack": "^5.75.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.12.16",
     "@babel/eslint-parser": "^7.12.16",
     "@vue/cli-plugin-babel": "~5.0.0",
     "@vue/cli-plugin-eslint": "~5.0.0",
