@@ -1,4 +1,4 @@
-import { getDecryptedU8Array } from '@/utils/bin';
+import { dec, enc, getDecryptedU8Array } from '@/utils/bin';
 import { isLegalHCTFFile } from '@/utils/fileJudge';
 
 describe('bin.js', () => {
@@ -16,7 +16,7 @@ describe('bin.js', () => {
     expect(decryptedData3).toEqual(new Uint8Array([]));
   });
 
-  it('bin/isLegalHCTFFile()', () => {
+  it('fileJudge/isLegalHCTFFile()', () => {
     const arr = [
       [0x68, 0x63, 0x74],
       [0x68, 0x63, 0x74, 0x05],
@@ -38,5 +38,22 @@ describe('bin.js', () => {
       const fl = isLegalHCTFFile(u8Array.buffer);
       expect(fl).toBeTruthy();
     });
+  });
+
+  it('bin/dec() base', async () => {
+    const ab = new Uint8Array([0x68, 0x63, 0x74, 0x66, 0x05, 0, 0, 0, 0x68, 0x63, 0x74, 0x66, 0x03, 0x1, 0x2, 0x3]).buffer;
+    const { decryptResultData } = dec(ab);
+    expect(decryptResultData).toEqual(new Uint8Array([0x1 ^ 0x68, 0x2 ^ 0x63, 0x3 ^ 0x74]));
+  });
+
+  it('enc() and dec()', async () => {
+    const u8Array = new Uint8Array([0x68, 0x63, 0x74, 0x66, 0x05, 0, 0, 0, 0x68, 0x63, 0x74, 0x66, 0x03, 0x11, 0x45, 0x14, 0x19, 0x19, 0x81, 0]);
+    const ab = u8Array.buffer;
+    const { encryptResultData } = enc(ab, Buffer.from('这是一个密钥key'), 10);
+    const encArrayBuffer = encryptResultData.buffer;
+    const { decryptResultData: decryptResultData1 } = dec(encArrayBuffer, 10);
+    expect(decryptResultData1).toEqual(u8Array);
+    const { decryptResultData: decryptResultData2 } = dec(decryptResultData1.buffer, 1);
+    expect(decryptResultData2).toEqual(new Uint8Array([0x11 ^ 0x68, 0x45 ^ 0x63, 0x14 ^ 0x74, 0x19 ^ 0x66, 0x19 ^ 0x03, 0x81 ^ 0x68, 0x63]));
   });
 });

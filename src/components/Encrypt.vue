@@ -135,7 +135,8 @@ const encryptRoundCount = computed(() => (options.value.multiRoundEncryption ? o
 async function encrypt(file) {
   encryptResultBlob.value = null;
   const curArrayBuffer = await fileToArrayBuffer(file.raw);
-  encryptResultBlob.value = enc(curArrayBuffer, encryptKey.value, encryptRoundCount.value);
+  const res = enc(curArrayBuffer, encryptKey.value, encryptRoundCount.value);
+  encryptResultBlob.value = res.encryptResultBlob;
   emit('encrypted', encryptResultBlob.value);
 }
 

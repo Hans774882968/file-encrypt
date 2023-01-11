@@ -323,25 +323,63 @@ class AddCopyrightPlugin {
 }
 ```
 
-### 支持多个代码块的插入
+## 支持多个代码块的插入
 我们怎能满足于单个代码块的插入？根据期望，我们稍微改造一下`AddCopyrightPlugin`的输入：
 - `options.copyrightFiles: string[]`，表示代码块文件的相对路径。我们希望各个代码块文件**按顺序执行**。
 - `options.inspectAssets: boolean`，如果为truthy，则把`assets[fileName]`输出，方便观察我们处理之后的代码。
 - `excludes?: string | string[]`，含义和`webpack-obfuscator`的第二个参数相同。
 
 这里的关键是，我们希望代码块尽量分布于`bodyToInsert`的不同空隙，这样才能保证，两个代码块必须分别破解。于是我们设计了这么一个算法：
-- 如果代码块数量`count <= bodyToInsert.length + 1`，那么需要一个由`lastInsertIndex`推出当前插入下标的递推式。
+- 如果代码块数量`count <= bodyToInsert.length + 1`，那么直接用`lodash`的`sampleSize`（等于python的`random.sample`）。
 - 否则，直接随机`count`个下标。
 
-这里的递推式我使用了
+### lodash/sampleSize源码分析
+`lodash/sampleSize`源码：
+
 ```js
-const coeff = Math.random() * Math.min(2 * (i + 1) / count, 1);
-const curInsertIndex = lastInsertIndex + 1 + Math.floor(
-  coeff * (arrayLength - (count - i - 2) - (lastInsertIndex + 1)),
-);
+import copyArray from './.internal/copyArray.js'
+import slice from './slice.js'
+
+/**
+ * Gets `n` random elements at unique keys from `array` up to the
+ * size of `array`.
+ *
+ * @since 4.0.0
+ * @category Array
+ * @param {Array} array The array to sample.
+ * @param {number} [n=1] The number of elements to sample.
+ * @returns {Array} Returns the random elements.
+ * @example
+ *
+ * sampleSize([1, 2, 3], 2)
+ * // => [3, 1]
+ *
+ * sampleSize([1, 2, 3], 4)
+ * // => [2, 3, 1]
+ */
+function sampleSize(array, n) {
+  n = n == null ? 1 : n
+  const length = array == null ? 0 : array.length
+  if (!length || n < 1) {
+    return []
+  }
+  n = n > length ? length : n
+  let index = -1
+  const lastIndex = length - 1
+  const result = copyArray(array)
+  while (++index < n) {
+    const rand = index + Math.floor(Math.random() * (lastIndex - index + 1))
+    const value = result[rand]
+    result[rand] = result[index]
+    result[index] = value
+  }
+  return slice(result, 0, n)
+}
+
+export default sampleSize
 ```
 
-但它的问题很大：`getInsertIndexes(300, 1900)`，很快就逼近了右侧，后面大多数元素都挨在一起。TODO：改进算法，解决这个问题。
+先深拷贝避免修改原数组，再洗牌，最后取前`n`个。洗牌算法是当前点和它后面的随机点（包括自己）进行交换，力扣有原题，可以证明每个元素处于每个位置的概率相同，复杂度`O(array.length)`。
 
 注意：
 1. 我们是按照原来的元素个数来分配插入的下标的，那么考虑到元素的增长，插入的位置应该调整为`insertIndexes[i] + totalInsertCount`。否则不能满足顺序插入的要求。

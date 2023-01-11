@@ -9,14 +9,15 @@
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
+    "@babel/core": "^7.12.16",
     "@babel/generator": "^7.20.7",
     "@babel/parser": "^7.20.7",
     "@babel/types": "^7.20.7",
-    "@babel/core": "^7.12.16",
     "@element-plus/icons-vue": "^2.0.10",
     "core-js": "^3.8.3",
     "element-plus": "^2.2.25",
     "file-type": "^18.0.0",
+    "lodash": "^4.17.21",
     "multimatch": "5.0.0",
     "path-browserify": "^1.0.1",
     "stream-browserify": "^3.0.0",

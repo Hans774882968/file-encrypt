@@ -36,7 +36,10 @@ export function enc(ab, _encryptKey = fileHeader, encryptRoundCount = 1) {
   for (let i = 0; i < encryptRoundCount; ++i) {
     encryptedData = getEncryptedU8Array(encryptedData, encryptKey);
   }
-  return new Blob([encryptedData]);
+  return {
+    encryptResultData: encryptedData,
+    encryptResultBlob: new Blob([encryptedData]),
+  };
 }
 
 export function getDecryptedU8Array(ab) {
