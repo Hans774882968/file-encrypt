@@ -17,6 +17,7 @@
     "core-js": "^3.8.3",
     "element-plus": "^2.2.25",
     "file-type": "^18.0.0",
+    "highlight.js": "^11.7.0",
     "lodash": "^4.17.21",
     "multimatch": "5.0.0",
     "path-browserify": "^1.0.1",

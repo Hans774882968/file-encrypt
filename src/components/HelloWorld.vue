@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="app-page">
     <div class="hello">
       <encrypt />
       <decrypt @decrypted="getDecryptResult" />
@@ -19,6 +19,10 @@
         v-if="decryptResultAudio"
         :audio-data="decryptResultAudio"
       />
+      <code-block
+        v-if="decryptResultMayBeText"
+        :text-data="decryptResultMayBeText"
+      />
     </div>
   </div>
 </template>
@@ -31,13 +35,15 @@ import Encrypt from './Encrypt.vue';
 import Decrypt from './Decrypt.vue';
 import VideoPlayer from './VideoPlayer.vue';
 import AudioPlayer from './AudioPlayer.vue';
+import CodeBlock from './CodeBlock.vue';
 import {
-  isPNG, isJPG, isPDF, isMP3, isLegalHCTFFile, isVideo, isExcel, isGif, isWebp,
+  isPNG, isJPG, isPDF, isMP3, isLegalHCTFFile, isVideo, isExcel, isGif, isWebp, mayBeMeaningfulText,
 } from '../utils/fileJudge';
 
 const decryptResultImg = ref(null);
 const decryptResultVideo = ref(null);
 const decryptResultAudio = ref(null);
+const decryptResultMayBeText = ref(null);
 
 const imgPreviewSrcList = computed(() => [decryptResultImg.value]);
 
@@ -45,6 +51,7 @@ function clearDecryptResult() {
   decryptResultImg.value = null;
   decryptResultVideo.value = null;
   decryptResultAudio.value = null;
+  decryptResultMayBeText.value = null;
 }
 
 async function getDecryptResult(decryptResultObject) {
@@ -64,6 +71,8 @@ async function getDecryptResult(decryptResultObject) {
     ElMessage.success('pdf文件');
   } else if (await isExcel(fileTypeResult)) {
     ElMessage.success('Excel文件');
+  } else if (mayBeMeaningfulText(decryptResult)) {
+    decryptResultMayBeText.value = new TextDecoder().decode(decryptResult);
   } else {
     ElMessage.warning('未知的文件类型');
   }
@@ -77,22 +86,25 @@ export default {
 </script>
 
 <style lang="less" scoped>
-.hello {
-  display: flex;
-  gap: 20px;
+.app-page {
   padding: 20px;
-}
-.hello > * {
-  flex: 1;
-}
-.img-view {
-  width: 600px;
-  height: 600px;
-}
-.viewers {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+
+  .hello {
+    display: flex;
+    gap: 20px;
+  }
+  .hello > * {
+    flex: 1;
+  }
+  .img-view {
+    width: 600px;
+    height: 600px;
+  }
+  .viewers {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
 }
 :deep(.el-image__placeholder) {
   background: url('../assets/icon-loading.svg') no-repeat 50% 50%;

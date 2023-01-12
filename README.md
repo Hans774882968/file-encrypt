@@ -38,8 +38,9 @@ See [Configuration Reference](https://cli.vuejs.org/config/).
 
 ### TLDR
 1. vue3 setup CRUD。
-2. 在vue中配置webpack、webpack自定义插件。
-3. 懂得正向能让逆向更为顺利。相应地，前端可以考虑把这些可能有利于“社工”的漏洞补上。
+2. 在vue中配置webpack、webpack自定义插件的编写。
+3. 用Babel分析JS代码的AST，达到修改JS代码的目的。
+4. 懂得正向能让逆向更为顺利。相应地，前端可以考虑把这些可能有利于“社工”的漏洞补上。
 
 ## 安装file-type
 安装这个也太难受了……首先`yarn add file-type`，然后`import { fileTypeFromBuffer } from 'file-type';`，不出意外你会得到错误：
@@ -73,7 +74,7 @@ You may need an additional plugin to handle "node:" URIs.
 }
 ```
 
-如果不加`resolve.fallback`，则你还会见到下一个错误：不认识`stream`。这是因为我们用的webpack版本是最新的`5.75.0`，而这个版本已经不提供node核心包的polyfill。因此我们需要自己添加`stream`的polyfill。
+如果不加`resolve.fallback`，则你还会见到下一个错误：不认识`stream`。这是因为我们用的webpack版本是最新的`5.75.0`，而这个版本（webpack5）已经不提供node核心包的polyfill。我们需要自己添加`stream`的polyfill。
 
 1. 如上所述，加`resolve.fallback`。
 2. `yarn add stream-browserify`。
@@ -128,6 +129,29 @@ exports: {
 2. `node_modules/file-type/core.js`的`import * as strtok3 from 'strtok3/core';`改成`import * as strtok3 from 'strtok3/lib/core';`
 3. node_modules，strtok3添加`"./lib/core": "./lib/core.js"`
 
+后续每次`yarn`重新安装依赖，都要把2和3重做一次，才能保证`yarn test:unit`、`yarn build`都正常。
+
+## 实现代码预览
+```bash
+yarn add highlight.js --registry=https://registry.npm.taobao.org
+```
+
+`main.js`
+
+```js
+import hljs from 'highlight.js';
+import 'highlight.js/styles/atom-one-dark.css';
+app.config.globalProperties.$hljs = hljs;
+```
+
+为`<pre><code class="code">`添加一个圆润的字体，提高颜值：
+```css
+.code {
+  text-align: initial;
+  font-family: Consolas, Monaco, monospace;
+}
+```
+
 ## 混淆
 `yarn build`后生成`dist/js/app.[hash].js`，发现可以比较容易地定位到加密和解密的关键方法。
 
@@ -153,7 +177,7 @@ function P(e,t=1){let n=e;for(let r=0;r<t;++r){if(!b(n))break;n=q(n).buffer}cons
 yarn add -D javascript-obfuscator webpack-obfuscator
 ```
 
-这里下了230108的最新版`webpack-obfuscator3.5.1`，OB`4.0.0`。
+这里下了目前（230108）的最新版`webpack-obfuscator3.5.1`，OB`4.0.0`。
 
 参考链接2提供了OB配置项的注释，但他基于`webpack-obfuscator3.5.0`，OB`3.2.7`，我们以OB GitHub的readme为准。
 
@@ -161,7 +185,7 @@ yarn add -D javascript-obfuscator webpack-obfuscator
 
 `webpack-obfuscator`提供了loader和plugin两种用法，建议使用plugin（踩坑心得😢）。
 
-但是逆它难度依旧不大……因为类名没有混淆，并且我们知道关键方法一定用到了`Uint8Array`，所以很快可以定位到关键代码。面对这个问题，我们在《将`className`替换为`window.className`》一节再写一个webpack插件来处理。
+但是逆它难度依旧不大……因为类名没有混淆，并且我们知道关键方法一定用到了`Uint8Array`、`Blob`等类，所以很快可以定位到关键代码。面对这个问题，我们在《将`className`替换为`window.className`》一节再写一个webpack插件来处理。
 
 加密：
 ```js
@@ -385,12 +409,12 @@ export default sampleSize
 1. 我们是按照原来的元素个数来分配插入的下标的，那么考虑到元素的增长，插入的位置应该调整为`insertIndexes[i] + totalInsertCount`。否则不能满足顺序插入的要求。
 2. 我们自己编写了一个禁止控制台的代码块，并传入了`options.copyrightFiles`。所以`disableConsoleOutput`可以设为true了。这样我们就做到了一件事：可以在输出NAG的代码之后，再禁止控制台。
 
-## 将className替换为window.className
-将`className`替换为`window.className`这个操作的目的是让OB的混淆发挥作用，达到隐藏JS标准内置对象的目的。
+## 编写一个webpack插件，将className替换为window.className
+将`className`替换为`window.className`这个操作的目的是让OB的混淆发挥作用，达到隐藏JS标准内置对象的目的。使用这个插件，我们就不需要自己在项目中添加`window`前缀。
 
 特征匹配：
-- 当前节点`node`是`NewExpression`，且`node.callee`是`Identifier`。
-- 当前节点`node`是`BinaryExpression`，`node.operator`是`instanceof`，且`node.left`或`node.right`是`Identifier`。
+- 对于`new Blob([])`：当前节点`node`是`NewExpression`，且`node.callee`是`Identifier`。
+- 对于`x instanceof Uint8Array`：当前节点`node`是`BinaryExpression`，`node.operator`是`instanceof`，且`node.left`或`node.right`是`Identifier`。
 
 因为对`babel`的`path`了解太少，这里只好采用一个迂回的做法：先匹配`Identifier`，再看其`parent`是否符合上述特征。
 
@@ -426,11 +450,14 @@ class RemoveSensitiveInfoPlugin extends OnlyProcessJSFilePlugin {
 }
 ```
 
-最后，因为OB早就被各位前端逆向佬们研究透彻了，所以给大家一道简单题：对打包后的资源，使用Chrome Sources面板的替换功能，去除所有产生NAG的代码。
+最后，因为OB早就被各位前端逆向佬们研究透彻了，所以给大家一道简单题：
+1. 对打包后的资源，使用Chrome Sources面板的替换功能，去除所有产生NAG的代码。
+2. 找到文件加密和解密的关键函数。
 
 ## TODO
 1. 支持flv播放。
-2. 支持加密方法的选择。但是因为设计文件格式时没有预留位置，只能放弃了。
+2. 完善code-block组件，支持markdown的渲染。
+3. 支持加密方法的选择。但是因为设计文件格式时没有预留位置，只能放弃了。
 
 ## 参考资料
 1. Cannot find module 'strtok3/core' from 'node_modules/file-type/core.js'：https://stackoverflow.com/questions/70325365/importing-pure-esm-module-in-ts-project-fails-jest-test-with-import-error

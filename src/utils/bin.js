@@ -17,10 +17,6 @@ function uint32ToUint8Array(n) {
   return new Uint8Array(a);
 }
 
-export function isUint8ArrayEqual(a1, a2) {
-  return a1.length === a2.length && a1.every((v, i) => v === a2[i]);
-}
-
 export function getEncryptedU8Array(ab, encryptKey) {
   const u8Array = new Uint8Array(ab);
   const encryptedData = u8Array.map((b, i) => b ^ encryptKey[i % encryptKey.length]);

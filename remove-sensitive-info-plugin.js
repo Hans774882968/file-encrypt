@@ -9,7 +9,7 @@ const {
 const OnlyProcessJSFilePlugin = require('./webpack-plugin-utils');
 
 class RemoveSensitiveInfoPlugin extends OnlyProcessJSFilePlugin {
-  static sensitiveClassNames = ['DataView', 'Uint8Array', 'Blob', 'TextEncoder'];
+  static sensitiveClassNames = ['DataView', 'Uint8Array', 'Blob', 'TextEncoder', 'ArrayBuffer'];
 
   constructor(options, excludes) {
     super(excludes);
