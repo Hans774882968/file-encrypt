@@ -14,6 +14,7 @@
     "@babel/parser": "^7.20.7",
     "@babel/types": "^7.20.7",
     "@element-plus/icons-vue": "^2.0.10",
+    "clipboard": "^2.0.11",
     "core-js": "^3.8.3",
     "dompurify": "^2.4.3",
     "element-plus": "^2.2.25",

@@ -5,17 +5,26 @@
     </p>
     <pre class="pre">
       <code ref="codeBlock" class="code">{{ textData }}</code>
-      <el-icon size="1.5em" class="copy" title="点击复制"><document-copy /></el-icon>
+      <el-icon
+        ref="iconCopy"
+        size="1.5em"
+        class="icon-copy"
+        title="点击复制"
+        :data-clipboard-text="textData"
+      >
+        <document-copy />
+      </el-icon>
     </pre>
   </div>
 </template>
 
 <script setup>
 import {
-  computed, getCurrentInstance, nextTick, ref, toRefs, watchEffect,
+  computed, getCurrentInstance, nextTick, onMounted, ref, toRefs, watchEffect,
 } from 'vue';
-import { ElIcon } from 'element-plus';
+import { ElIcon, ElMessage } from 'element-plus';
 import { DocumentCopy } from '@element-plus/icons-vue';
+import Clipboard from 'clipboard';
 
 const props = defineProps({
   textData: {
@@ -29,6 +38,7 @@ const props = defineProps({
 });
 const { textData, subElementCount } = toRefs(props);
 const codeBlock = ref(null);
+const iconCopy = ref(null);
 
 const codeViewerStyle = computed(() => ({
   ...(subElementCount.value === 1 ? { maxWidth: '100%' } : {}),
@@ -43,6 +53,17 @@ const possibleLanguage = computed(() => {
 
 watchEffect(() => {
   nextTick(() => proxy.$hljs.highlightElement(codeBlock.value));
+});
+
+onMounted(() => {
+  const clipboard = new Clipboard(iconCopy.value.$el);
+  clipboard.on('success', () => {
+    ElMessage.success(`复制成功。文本长度：${textData.value.length}`);
+  });
+  clipboard.on('error', (e) => {
+    ElMessage.error('该浏览器不支持自动复制');
+    console.error('该浏览器不支持自动复制', e);
+  });
 });
 </script>
 
@@ -59,7 +80,7 @@ watchEffect(() => {
     .code {
       font-family: Consolas, Monaco, monospace;
     }
-    .copy {
+    .icon-copy {
       position: absolute;
       top: @copy-distance-to-top;
       right: @copy-distance-to-right;

@@ -1,6 +1,7 @@
 <template>
   <div
     ref="markdownContainer"
+    :style="markdownContainerStyle"
     class="markdown-container"
     v-html="htmlCode"
   />
@@ -8,6 +9,7 @@
 
 <script setup>
 import {
+  computed,
   getCurrentInstance,
   nextTick,
   ref, toRefs,
@@ -18,27 +20,22 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  subElementCount: {
+    type: Number,
+    required: true,
+  },
 });
-const { htmlCode } = toRefs(props);
-
+const { htmlCode, subElementCount } = toRefs(props);
 const markdownContainer = ref(null);
+
+const markdownContainerStyle = computed(() => ({
+  ...(subElementCount.value === 1 ? { maxWidth: '100%' } : {}),
+  ...(subElementCount.value > 1 ? { overflowX: 'scroll' } : {}),
+}));
 
 const { proxy } = getCurrentInstance();
 nextTick(() => {
-  const codeElements = [];
-  function dfs(element) {
-    if (element.tagName.toLowerCase() === 'pre'
-      && element.children.length
-      && element.children[0].tagName.toLowerCase() === 'code') {
-      codeElements.push(element.children[0]);
-      return;
-    }
-    // eslint-disable-next-line no-restricted-syntax
-    for (const ch of element.children) {
-      dfs(ch);
-    }
-  }
-  dfs(markdownContainer.value);
+  const codeElements = markdownContainer.value.querySelectorAll('pre code');
   codeElements.forEach((codeElement) => proxy.$hljs.highlightElement(codeElement));
 });
 </script>

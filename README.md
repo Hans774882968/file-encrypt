@@ -200,7 +200,7 @@ externals: {
 },
 ```
 
-`vue inspect > output.js`可以预览添加的webpack配置：
+`vue inspect > output.js`可以预览我们的改动将要添加的webpack配置：
 ```js
 externals: {
   fs: {
@@ -212,6 +212,32 @@ externals: {
 ```
 
 现在看上去正常了。
+
+点击复制功能：`yarn add clipboard`，使用：
+```html
+<el-icon
+  ref="iconCopy"
+  size="1.5em"
+  class="icon-copy"
+  title="点击复制"
+  :data-clipboard-text="textData"
+>
+  <document-copy />
+</el-icon>
+
+<script setup>
+onMounted(() => {
+  const clipboard = new Clipboard(iconCopy.value.$el);
+  clipboard.on('success', () => {
+    ElMessage.success(`复制成功。文本长度：${textData.value.length}`);
+  });
+  clipboard.on('error', (e) => {
+    ElMessage.error('该浏览器不支持自动复制');
+    console.error('该浏览器不支持自动复制', e);
+  });
+});
+</script>
+```
 
 ## 混淆
 `yarn build`后生成`dist/js/app.[hash].js`，发现可以比较容易地定位到加密和解密的关键方法。

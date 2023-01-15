@@ -62,7 +62,7 @@ import { Upload, Download, QuestionFilled } from '@element-plus/icons-vue';
 import { computed, reactive, ref } from 'vue';
 import { fileToArrayBuffer, dec } from '../utils/bin';
 import { isLegalHCTFFile, getBufferExt } from '../utils/fileJudge';
-import { downloadDecryptFile } from '../utils/download';
+import { downloadDecryptFile } from '../utils/utils';
 
 const emit = defineEmits(['decrypted']);
 

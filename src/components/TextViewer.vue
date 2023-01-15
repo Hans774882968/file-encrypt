@@ -1,7 +1,7 @@
 <template>
   <div class="text-viewer-container">
     <code-viewer :text-data="textData" :sub-element-count="subElementCount" />
-    <markdown-container v-if="markdownHTMLCode" :html-code="markdownHTMLCode" />
+    <markdown-container v-if="markdownHTMLCode" :html-code="markdownHTMLCode" :sub-element-count="subElementCount" />
   </div>
 </template>
 

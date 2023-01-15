@@ -55,12 +55,15 @@ function clearDecryptResult() {
   decryptResultMayBeText.value = null;
 }
 
+const LINE_MAX_LEN_LIMIT = 100000;
+// 这个函数改写为计算属性会有未知bug，在重新渲染时报错
 function textViewerShouldRender() {
   if (!decryptResultMayBeText.value) {
     ElMessage.success('检测到空文档');
   }
-  if (getLineMaxLength(decryptResultMayBeText.value) > 100000) {
-    ElMessage.success('该文档单行长度过大，暂不提供预览功能');
+  const lineMaxLen = getLineMaxLength(decryptResultMayBeText.value);
+  if (lineMaxLen > LINE_MAX_LEN_LIMIT) {
+    ElMessage.success(`该文档单行长度过大（${lineMaxLen} / ${LINE_MAX_LEN_LIMIT}），为防止页面崩溃，暂不提供预览功能`);
     decryptResultMayBeText.value = '';
   }
 }

@@ -90,9 +90,9 @@
 import path from 'node:path';
 import { Upload, Download, QuestionFilled } from '@element-plus/icons-vue';
 import { computed, reactive, ref } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElIcon } from 'element-plus';
 import { fileToArrayBuffer, enc } from '../utils/bin';
-import { downloadEncryptFile } from '../utils/download';
+import { downloadEncryptFile } from '../utils/utils';
 
 const emit = defineEmits(['encrypted']);
 
