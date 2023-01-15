@@ -76,6 +76,20 @@ You may need an additional plugin to handle "node:" URIs.
 
 如果不加`resolve.fallback`，则你还会见到下一个错误：不认识`stream`。这是因为我们用的webpack版本是最新的`5.75.0`，而这个版本（webpack5）已经不提供node核心包的polyfill。我们需要自己添加`stream`的polyfill。
 
+报错信息形如：
+```
+Module not found: Error: Can't resolve 'os' in '/path-to/file-encrypt/node_modules/node-gyp-build'
+
+BREAKING CHANGE: webpack < 5 used to include polyfills for node.js core modules by default.
+This is no longer the case. Verify if you need this module and configure a polyfill for it.
+
+If you want to include a polyfill, you need to:
+        - add a fallback 'resolve.fallback: { "os": require.resolve("os-browserify/browser") }'
+        - install 'os-browserify'
+If you don't want to include a polyfill, you can use an empty module like this:
+        resolve.fallback: { "os": false }
+```
+
 1. 如上所述，加`resolve.fallback`。
 2. `yarn add stream-browserify`。
 
@@ -151,6 +165,53 @@ app.config.globalProperties.$hljs = hljs;
   font-family: Consolas, Monaco, monospace;
 }
 ```
+
+### 如何判定解密所得Uint8Array是否为一段文本
+目前使用一个简单粗暴的方法：判定`Uint8Array`是否为utf-8格式。
+```bash
+yarn add utf-8-validate
+```
+
+我们希望把node的模块用于浏览器端，势必要踩不少坑。
+
+首先需要引入polyfill：
+```js
+resolve: {
+  fallback: {
+    os: require.resolve('os-browserify'),
+  },
+},
+```
+
+```bash
+yarn add os-browserify
+```
+
+接下来会遇到这个错误：
+```
+Module not found: Error: Can't resolve 'fs' in 'path-to/file-encrypt/node_modules/node-gyp-build'
+```
+
+根据[参考链接4](https://blog.csdn.net/ayong120/article/details/124665239)，可以尝试这个webpack配置：
+```js
+externals: {
+  // eslint-disable-next-line global-require
+  fs: require('fs'),
+},
+```
+
+`vue inspect > output.js`可以预览添加的webpack配置：
+```js
+externals: {
+  fs: {
+    appendFile: function () { /* omitted long function */ },
+    appendFileSync: function () { /* omitted long function */ },
+    // ...
+  }
+}
+```
+
+现在看上去正常了。
 
 ## 混淆
 `yarn build`后生成`dist/js/app.[hash].js`，发现可以比较容易地定位到加密和解密的关键方法。
@@ -456,10 +517,11 @@ class RemoveSensitiveInfoPlugin extends OnlyProcessJSFilePlugin {
 
 ## TODO
 1. 支持flv播放。
-2. 完善code-block组件，支持markdown的渲染。
+2. 文本预览支持一键复制、`download.js`等代码清理。
 3. 支持加密方法的选择。但是因为设计文件格式时没有预留位置，只能放弃了。
 
 ## 参考资料
 1. Cannot find module 'strtok3/core' from 'node_modules/file-type/core.js'：https://stackoverflow.com/questions/70325365/importing-pure-esm-module-in-ts-project-fails-jest-test-with-import-error
 2. `webpack-obfuscator`配置项解释：https://www.cnblogs.com/dragonir/p/14445767.html
 3. `webpack-obfuscator`导读：https://juejin.cn/post/7115700678764265503
+4. Error: Can‘t resolve ‘fs‘ in (Webpack 5.72.0)：https://blog.csdn.net/ayong120/article/details/124665239

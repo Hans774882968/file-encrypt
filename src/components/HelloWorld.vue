@@ -19,7 +19,7 @@
         v-if="decryptResultAudio"
         :audio-data="decryptResultAudio"
       />
-      <code-block
+      <text-viewer
         v-if="decryptResultMayBeText"
         :text-data="decryptResultMayBeText"
       />
@@ -35,10 +35,11 @@ import Encrypt from './Encrypt.vue';
 import Decrypt from './Decrypt.vue';
 import VideoPlayer from './VideoPlayer.vue';
 import AudioPlayer from './AudioPlayer.vue';
-import CodeBlock from './CodeBlock.vue';
+import TextViewer from './TextViewer.vue';
 import {
   isPNG, isJPG, isPDF, isMP3, isLegalHCTFFile, isVideo, isExcel, isGif, isWebp, mayBeMeaningfulText,
 } from '../utils/fileJudge';
+import { getLineMaxLength } from '../utils/utils';
 
 const decryptResultImg = ref(null);
 const decryptResultVideo = ref(null);
@@ -52,6 +53,16 @@ function clearDecryptResult() {
   decryptResultVideo.value = null;
   decryptResultAudio.value = null;
   decryptResultMayBeText.value = null;
+}
+
+function textViewerShouldRender() {
+  if (!decryptResultMayBeText.value) {
+    ElMessage.success('检测到空文档');
+  }
+  if (getLineMaxLength(decryptResultMayBeText.value) > 100000) {
+    ElMessage.success('该文档单行长度过大，暂不提供预览功能');
+    decryptResultMayBeText.value = '';
+  }
 }
 
 async function getDecryptResult(decryptResultObject) {
@@ -73,6 +84,7 @@ async function getDecryptResult(decryptResultObject) {
     ElMessage.success('Excel文件');
   } else if (mayBeMeaningfulText(decryptResult)) {
     decryptResultMayBeText.value = new TextDecoder().decode(decryptResult);
+    textViewerShouldRender();
   } else {
     ElMessage.warning('未知的文件类型');
   }

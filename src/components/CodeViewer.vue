@@ -1,5 +1,5 @@
 <template>
-  <div class="code-block-container">
+  <div :style="codeViewerStyle" class="code-viewer-container">
     <p class="possible-language">
       {{ possibleLanguage }}
     </p>
@@ -12,8 +12,7 @@
 
 <script setup>
 import {
-  computed,
-  getCurrentInstance, nextTick, ref, toRefs, watchEffect,
+  computed, getCurrentInstance, nextTick, ref, toRefs, watchEffect,
 } from 'vue';
 import { ElIcon } from 'element-plus';
 import { DocumentCopy } from '@element-plus/icons-vue';
@@ -23,9 +22,18 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  subElementCount: {
+    type: Number,
+    required: true,
+  },
 });
-const { textData } = toRefs(props);
+const { textData, subElementCount } = toRefs(props);
 const codeBlock = ref(null);
+
+const codeViewerStyle = computed(() => ({
+  ...(subElementCount.value === 1 ? { maxWidth: '100%' } : {}),
+  ...(subElementCount.value > 1 ? { overflowX: 'scroll' } : {}),
+}));
 
 const { proxy } = getCurrentInstance();
 const possibleLanguage = computed(() => {
@@ -39,8 +47,8 @@ watchEffect(() => {
 </script>
 
 <style lang="less" scoped>
-.code-block-container {
-  width: 100%;
+.code-viewer-container {
+  flex: 1;
 
   .pre {
     position: relative;

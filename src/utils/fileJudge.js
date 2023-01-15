@@ -1,5 +1,6 @@
 import { fileTypeFromBuffer } from 'file-type';
 import isEqual from 'lodash/isEqual';
+import isValidUTF8 from 'utf-8-validate';
 import { fileHeader } from './bin';
 
 export function isLegalHCTFFile(ab) {
@@ -79,9 +80,5 @@ export async function getBufferExt(ab) {
 }
 
 export function mayBeMeaningfulText(data) {
-  // eslint-disable-next-line no-restricted-syntax
-  for (const v of data) {
-    if (!(v >= 32 && v < 127) && ![9, 10, 13].includes(v)) return false;
-  }
-  return true;
+  return isValidUTF8(data);
 }
