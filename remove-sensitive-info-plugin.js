@@ -4,12 +4,12 @@ const parser = require('@babel/parser');
 const generator = require('@babel/generator').default;
 const { traverse } = require('@babel/core');
 const {
-  memberExpression, identifier, isNewExpression, isBinaryExpression,
+  memberExpression, identifier, isNewExpression, isBinaryExpression, isMemberExpression,
 } = require('@babel/types');
 const OnlyProcessJSFilePlugin = require('./webpack-plugin-utils');
 
 class RemoveSensitiveInfoPlugin extends OnlyProcessJSFilePlugin {
-  static sensitiveClassNames = ['DataView', 'Uint8Array', 'Blob', 'TextEncoder', 'ArrayBuffer'];
+  static sensitiveClassNames = ['DataView', 'Uint8Array', 'Blob', 'TextEncoder', 'ArrayBuffer', 'console', 'Object'];
 
   constructor(options, excludes) {
     super(excludes);
@@ -35,6 +35,8 @@ class RemoveSensitiveInfoPlugin extends OnlyProcessJSFilePlugin {
         if (isNewExpression(parentNode)) {
           replaceNode(path, className);
         } else if (isBinaryExpression(parentNode) && parentNode.operator === 'instanceof') {
+          replaceNode(path, className);
+        } else if (isMemberExpression(parentNode) && parentNode.object === path.node) {
           replaceNode(path, className);
         }
       },

@@ -494,7 +494,57 @@ export default sampleSize
 
 注意：
 1. 我们是按照原来的元素个数来分配插入的下标的，那么考虑到元素的增长，插入的位置应该调整为`insertIndexes[i] + totalInsertCount`。否则不能满足顺序插入的要求。
-2. 我们自己编写了一个禁止控制台的代码块，并传入了`options.copyrightFiles`。所以`disableConsoleOutput`可以设为true了。这样我们就做到了一件事：可以在输出NAG的代码之后，再禁止控制台。
+2. 我们自己编写了一个禁止控制台的代码块，并传入了`options.copyrightFiles`。所以`disableConsoleOutput`可以设为true了。这样我们就做到了一件事：可以在NAG代码`console.log`输出之后，再禁止控制台。
+
+### 自己实现disableConsoleOutput
+第一版实现：
+```js
+(() => {
+  Object.entries(window.console).forEach(([k, v]) => {
+    if (typeof v === 'function') {
+      window.console[k] = () => {};
+    }
+  });
+})();
+```
+
+在Chrome浏览器的控制台输入`console.log`，发现输出为`() => {}`，0基础前端都能马上发现它被动过手脚。我们希望控制台输入`console.log`和`console.log.toString()`的行为都与原有`console.log()`的无差别。那我们看看OB是怎么做的。
+
+[OB源码](https://github1s.com/javascript-obfuscator/javascript-obfuscator/blob/HEAD/src/custom-code-helpers/console-output/templates/ConsoleOutputDisableTemplate.ts)看不太懂，但这段代码有一个[相关issue](https://github.com/javascript-obfuscator/javascript-obfuscator/issues/691)。参考这些资料，我写出了如下代码：
+```js
+/* eslint-disable no-proto */
+(() => {
+  Object.entries(console).forEach(([k, originalFunction]) => {
+    if (typeof originalFunction !== 'function') return;
+    const emptyFunc = function () {};
+    if (emptyFunc.__proto__) {
+      emptyFunc.__proto__ = originalFunction.bind(originalFunction);
+    } else {
+      Object.setPrototypeOf(emptyFunc, originalFunction.bind(originalFunction));
+    }
+    emptyFunc.toString = originalFunction.toString.bind(originalFunction);
+    console[k] = emptyFunc;
+  });
+})();
+```
+
+这段代码在Safari表现正常，但在Chrome中，输入`console.log`得`ƒ () {}`。上述issue把它解释为“bug”，但我认为这意味着我们的代码还需要改进。
+
+为了增大发现这段代码的难度，并避免自己手动把`Object.entries`改为`window.Object.entries`，我改进了一下`remove-sensitive-info-plugin.js`：
+```js
+// 伪代码
+traverse(inputCodeAst, {
+  Identifier(path) {
+    const className = path.node.name;
+    if (!RemoveSensitiveInfoPlugin.sensitiveClassNames.includes(className)) return;
+    const parentNode = path.parentPath.node;
+    // ...
+    else if (isMemberExpression(parentNode) && parentNode.object === path.node) {
+      replaceNode(path, className);
+    }
+  },
+});
+```
 
 ## 编写一个webpack插件，将className替换为window.className
 将`className`替换为`window.className`这个操作的目的是让OB的混淆发挥作用，达到隐藏JS标准内置对象的目的。使用这个插件，我们就不需要自己在项目中添加`window`前缀。
@@ -543,8 +593,7 @@ class RemoveSensitiveInfoPlugin extends OnlyProcessJSFilePlugin {
 
 ## TODO
 1. 支持flv播放。
-2. 文本预览支持一键复制、`download.js`等代码清理。
-3. 支持加密方法的选择。但是因为设计文件格式时没有预留位置，只能放弃了。
+2. 支持加密方法的选择。但是因为设计文件格式时没有预留位置，只能放弃了。
 
 ## 参考资料
 1. Cannot find module 'strtok3/core' from 'node_modules/file-type/core.js'：https://stackoverflow.com/questions/70325365/importing-pure-esm-module-in-ts-project-fails-jest-test-with-import-error
