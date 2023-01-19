@@ -62,7 +62,9 @@ class AddCopyrightPlugin extends OnlyProcessJSFilePlugin {
       totalInsertCount += copyrightCodeBody.length;
     });
 
-    const { code } = generator(inputCodeAst);
+    const { code } = generator(inputCodeAst, {
+      auxiliaryCommentBefore: `insertIndexes = ${JSON.stringify(insertIndexes)}`,
+    });
     return code;
   }
 

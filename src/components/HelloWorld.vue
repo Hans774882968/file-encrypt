@@ -23,6 +23,11 @@
         v-if="decryptResultMayBeText"
         :text-data="decryptResultMayBeText"
       />
+      <pdf-viewer
+        v-if="decryptResultPDFData"
+        :pdf-data="decryptResultPDFData"
+        :width="1600"
+      />
     </div>
   </div>
 </template>
@@ -36,6 +41,7 @@ import Decrypt from './Decrypt.vue';
 import VideoPlayer from './VideoPlayer.vue';
 import AudioPlayer from './AudioPlayer.vue';
 import TextViewer from './TextViewer.vue';
+import PdfViewer from './PDFViewer.vue';
 import {
   isPNG, isJPG, isPDF, isMP3, isLegalHCTFFile, isVideo, isExcel, isGif, isWebp, mayBeMeaningfulText,
 } from '../utils/fileJudge';
@@ -45,6 +51,7 @@ const decryptResultImg = ref(null);
 const decryptResultVideo = ref(null);
 const decryptResultAudio = ref(null);
 const decryptResultMayBeText = ref(null);
+const decryptResultPDFData = ref(null);
 
 const imgPreviewSrcList = computed(() => [decryptResultImg.value]);
 
@@ -53,6 +60,7 @@ function clearDecryptResult() {
   decryptResultVideo.value = null;
   decryptResultAudio.value = null;
   decryptResultMayBeText.value = null;
+  decryptResultPDFData.value = null;
 }
 
 const LINE_MAX_LEN_LIMIT = 100000;
@@ -80,11 +88,12 @@ async function getDecryptResult(decryptResultObject) {
   } else if (await isMP3(fileTypeResult)) {
     decryptResultAudio.value = URL.createObjectURL(decryptResultBlob);
   } else if (isLegalHCTFFile(decryptResult)) {
-    ElMessage.success('hctf文件，请继续解密');
+    ElMessage.success('识别结果：hctf文件，请在保存文件后继续解密');
   } else if (await isPDF(fileTypeResult)) {
-    ElMessage.success('pdf文件');
+    ElMessage.success('识别结果：pdf文件');
+    decryptResultPDFData.value = URL.createObjectURL(decryptResultBlob);
   } else if (await isExcel(fileTypeResult)) {
-    ElMessage.success('Excel文件');
+    ElMessage.success('识别结果：Excel文件');
   } else if (mayBeMeaningfulText(decryptResult)) {
     decryptResultMayBeText.value = new TextDecoder().decode(decryptResult);
     textViewerShouldRender();

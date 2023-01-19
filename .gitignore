@@ -2,6 +2,7 @@
 node_modules
 /dist
 /dist-before-obfuscator
+/dist-before-pdf-viewer
 *-inspect.js
 
 

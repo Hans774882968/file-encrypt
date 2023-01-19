@@ -30,7 +30,7 @@ yarn lint
 See [Configuration Reference](https://cli.vuejs.org/config/).
 
 ## 引言
-我们可能会希望某些文件仅在查看时才解密，而明文数据总是不出现在硬盘中，类似于加壳的可执行文件。为了实现这一点，我能想到的技术栈有：前端、pyqt5（python）、qt（cpp）。我最熟悉前端技术栈，而且后两者的工作量看上去太大了，所以这个demo选择用前端技术栈实现。为了尽快出成果，我又选用了最熟悉的`Vue2 + element-plus（因为安装的是Vue3）`，后续可考虑用`Vue3 script setup`重构。
+我们可能会希望某些文件仅在查看时才解密，而明文数据总是不出现在硬盘中，类似于加壳的可执行文件。为了实现这一点，我能想到的技术栈有：前端、pyqt5（python）、qt（cpp）。我最熟悉前端技术栈，而且后两者的工作量看上去太大了，所以这个demo选择用前端技术栈实现。但在开发的过程中，我逐渐感受到前端技术栈的玩法比我想象得更多。
 
 下面仅简单讲述实现上的注意点，其余细节佬们可查看代码，[GitHub传送门](https://github.com/Hans774882968/file-encrypt)。
 
@@ -146,11 +146,12 @@ exports: {
 后续每次`yarn`重新安装依赖，都要把2和3重做一次，才能保证`yarn test:unit`、`yarn build`都正常。
 
 ## 实现代码预览
+代码高亮使用门槛最低的方案：`highlight.js`。
 ```bash
 yarn add highlight.js --registry=https://registry.npm.taobao.org
 ```
 
-`main.js`
+`main.js`引入样式并注册一个全局变量。
 
 ```js
 import hljs from 'highlight.js';
@@ -166,21 +167,28 @@ app.config.globalProperties.$hljs = hljs;
 }
 ```
 
+Vue组件中使用：
+```js
+const codeBlock = ref(null);
+nextTick(() => proxy.$hljs.highlightElement(codeBlock.value))
+```
+
 ### 如何判定解密所得Uint8Array是否为一段文本
-目前使用一个简单粗暴的方法：判定`Uint8Array`是否为utf-8格式。
+目前使用的是最简单粗暴的方法：判定`Uint8Array`是否为utf-8格式。
+
 ```bash
 yarn add utf-8-validate
 ```
 
 我们希望把node的模块用于浏览器端，势必要踩不少坑。
 
-首先需要引入polyfill：
+首先webpack配置需要引入polyfill：
 ```js
 resolve: {
   fallback: {
     os: require.resolve('os-browserify'),
   },
-},
+}
 ```
 
 ```bash
@@ -238,6 +246,55 @@ onMounted(() => {
 });
 </script>
 ```
+
+## PDF预览
+一开始想用`vue-pdf-embed`。`vue-pdf-embed`是一个基于`pdf.js`二次开发的vue组件，大大降低了使用门槛。
+```bash
+yarn add vue-pdf-embed
+```
+
+但它有一个神秘bug：对于vue3.2，第偶数次输入PDF不能加载。我暂时没有能力定位并修复它，只好选择了另一个方案：模仿`vue-pdf-embed`，写出vue3.2的版本。
+
+### 使用pdf.js
+
+```bash
+yarn add pdfjs-dist
+```
+
+因为pdf.js使用了最新的私有成员语法，所以报错：
+```markdown
+./node_modules/pdfjs-dist/build/pdf.js: Class private methods are not enabled. Please add `@babel/plugin-proposal-private-methods` to your configuration.
+```
+
+解决方式（来自[参考链接5](https://stackoverflow.com/questions/68686444/how-to-enable-private-method-syntax-proposal-in-react-app)）：首先
+```bash
+yarn add @babel/plugin-proposal-private-methods
+```
+
+然后`babel.config.js`
+```js
+module.exports = {
+  presets: [/* ... */],
+  plugins: [
+    '@babel/plugin-proposal-private-methods',
+  ],
+};
+```
+
+根据[参考链接5](https://stackoverflow.com/questions/68686444/how-to-enable-private-method-syntax-proposal-in-react-app)，用`@babel/preset-env`并设置target是ES2022也行？
+
+首先把`node_modules/pdfjs-dist/build/pdf.worker.js`复制到`public`文件夹下，使得该js文件可以通过`http://localhost:8080/pdf.worker.js`访问。然后在vue组件中：
+
+```js
+import * as PDFJS from 'pdfjs-dist';
+
+PDFJS.GlobalWorkerOptions.workerPort = new Worker('pdf.worker.js'); // 这种做法实属下策，但确实没什么好办法
+PDFJS.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.2.146/pdf.worker.js'; // 也可以用cdn，用cdn就不需要进行复制操作了
+```
+
+这两种做法都有问题：如果`pdf.js`升级，都要进行手动修改。
+
+为什么自己的worker不能加载`node_modules`的`pdf.worker.js`，但`vue-pdf-embed`的可以？因为`vue-pdf-embed`的worker是作为Blob加载过来的。更具体的原理还不清楚。
 
 ## 混淆
 `yarn build`后生成`dist/js/app.[hash].js`，发现可以比较容易地定位到加密和解密的关键方法。
@@ -546,6 +603,8 @@ traverse(inputCodeAst, {
 });
 ```
 
+这个特征看上去挺合理的。`abc.console.log`等`console`不在首位的情况并不会错误地匹配这个特征。
+
 ## 编写一个webpack插件，将className替换为window.className
 将`className`替换为`window.className`这个操作的目的是让OB的混淆发挥作用，达到隐藏JS标准内置对象的目的。使用这个插件，我们就不需要自己在项目中添加`window`前缀。
 
@@ -600,3 +659,4 @@ class RemoveSensitiveInfoPlugin extends OnlyProcessJSFilePlugin {
 2. `webpack-obfuscator`配置项解释：https://www.cnblogs.com/dragonir/p/14445767.html
 3. `webpack-obfuscator`导读：https://juejin.cn/post/7115700678764265503
 4. Error: Can‘t resolve ‘fs‘ in (Webpack 5.72.0)：https://blog.csdn.net/ayong120/article/details/124665239
+5. How to Enable Private Method Syntax Proposal in React App? https://stackoverflow.com/questions/68686444/how-to-enable-private-method-syntax-proposal-in-react-app
