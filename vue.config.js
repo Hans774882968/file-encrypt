@@ -6,18 +6,20 @@ const RemoveSensitiveInfoPlugin = require('./remove-sensitive-info-plugin');
 const { AddCopyrightPlugin } = require('./add-copyright-plugin');
 
 const chunkVendorsRelativePath = path.join('js', 'chunk-vendors.**.js');
+const workerRelativePath = path.join('js', '**.worker.js');
 
 function getObfuscatePlugins() {
+  const excludes = [chunkVendorsRelativePath, workerRelativePath];
   return process.env.NODE_ENV === 'production' ? [
     new AddCopyrightPlugin({
       copyrightFiles: [
         'copyright-print.js', 'copyright-nag.js', 'disable-console-output.js',
       ],
       inspectAssets: true,
-    }, [chunkVendorsRelativePath]),
+    }, excludes),
     new RemoveSensitiveInfoPlugin({
       inspectAssets: true,
-    }, [chunkVendorsRelativePath]),
+    }, excludes),
     new WebpackObfuscator({
       compact: true,
       controlFlowFlattening: true,
@@ -37,7 +39,7 @@ function getObfuscatePlugins() {
       stringArrayEncoding: ['base64'],
       stringArrayThreshold: 1,
       unicodeEscapeSequence: false,
-    }, [chunkVendorsRelativePath]),
+    }, excludes),
   ] : [];
 }
 
@@ -61,5 +63,17 @@ module.exports = defineConfig({
         os: require.resolve('os-browserify'),
       },
     },
+  },
+  chainWebpack: (config) => {
+    config.module
+      .rule('worker-loader')
+      .test(/\.worker\.js$/)
+      .enforce('post')
+      .use('worker-loader')
+      .loader('worker-loader')
+      .options({
+        inline: 'no-fallback',
+      })
+      .end();
   },
 });

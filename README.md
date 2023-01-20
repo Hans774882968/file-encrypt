@@ -38,7 +38,7 @@ See [Configuration Reference](https://cli.vuejs.org/config/).
 
 ### TLDR
 1. vue3 setup CRUD。
-2. 在vue中配置webpack、webpack自定义插件的编写。
+2. 在vue中配置webpack、webpack自定义插件的编写。`worker-loader`等loader，`WebpackObfuscator`等插件。
 3. 用Babel分析JS代码的AST，达到修改JS代码的目的。
 4. 懂得正向能让逆向更为顺利。相应地，前端可以考虑把这些可能有利于“社工”的漏洞补上。
 
@@ -253,7 +253,7 @@ onMounted(() => {
 yarn add vue-pdf-embed
 ```
 
-但它有一个神秘bug：对于vue3.2，第偶数次输入PDF不能加载。我暂时没有能力定位并修复它，只好选择了另一个方案：模仿`vue-pdf-embed`，写出vue3.2的版本。
+但它有一个神秘bug：对于vue3.2，第偶数次输入PDF不能加载。我暂时没有能力定位并修复它，只好选择了另一个方案：模仿`vue-pdf-embed`，写出适用于vue3.2的版本。
 
 ### 使用pdf.js
 
@@ -283,18 +283,73 @@ module.exports = {
 
 根据[参考链接5](https://stackoverflow.com/questions/68686444/how-to-enable-private-method-syntax-proposal-in-react-app)，用`@babel/preset-env`并设置target是ES2022也行？
 
-首先把`node_modules/pdfjs-dist/build/pdf.worker.js`复制到`public`文件夹下，使得该js文件可以通过`http://localhost:8080/pdf.worker.js`访问。然后在vue组件中：
+Worker应该怎么加载？一开始我的做法：首先把`node_modules/pdfjs-dist/build/pdf.worker.js`复制到`public`文件夹下，使得该js文件可以通过`http://localhost:8080/pdf.worker.js`访问。然后在vue组件中：
 
 ```js
 import * as PDFJS from 'pdfjs-dist';
 
-PDFJS.GlobalWorkerOptions.workerPort = new Worker('pdf.worker.js'); // 这种做法实属下策，但确实没什么好办法
-PDFJS.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.2.146/pdf.worker.js'; // 也可以用cdn，用cdn就不需要进行复制操作了
+PDFJS.GlobalWorkerOptions.workerPort = new Worker('pdf.worker.js'); // 我的做法
+// 另一种做法：也可以用cdn，用cdn就不需要进行复制操作了
+PDFJS.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.2.146/pdf.worker.js';
 ```
 
-这两种做法都有问题：如果`pdf.js`升级，都要进行手动修改。
+这两种做法都有问题：如果`pdf.js`升级，都要进行手动修改。那么`vue-pdf-embed`是怎么加载Worker的？答案是`vue-pdf-embed`配置了`worker-loader`。
 
-为什么自己的worker不能加载`node_modules`的`pdf.worker.js`，但`vue-pdf-embed`的可以？因为`vue-pdf-embed`的worker是作为Blob加载过来的。更具体的原理还不清楚。
+```bash
+yarn add worker-loader
+```
+
+查看`vue-pdf-embed`的`worker-loader`配置：
+```js
+{
+  test: /\.worker\.js$/,
+  loader: 'worker-loader',
+  options: {
+    inline: 'no-fallback',
+  },
+}
+```
+
+`vue.config.js`写出如下代码：
+```js
+chainWebpack: (config) => {
+  config.module
+    .rule('worker-loader')
+    .test(/\.worker\.js$/)
+    .enforce('post')
+    .use('worker-loader')
+    .loader('worker-loader')
+    .options({
+      inline: 'no-fallback',
+    })
+    .end();
+}
+```
+
+`vue inspect > output.js`查看新增的`worker-loader`配置：
+
+```js
+/* config.module.rule('worker-loader') */
+{
+  test: /\.worker\.js$/,
+  enforce: 'post',
+  use: [
+    /* config.module.rule('worker-loader').use('worker-loader') */
+    {
+      loader: 'worker-loader',
+      options: {
+        inline: 'no-fallback'
+      }
+    }
+  ]
+}
+```
+
+于是我们也能像`vue-pdf-embed`一样import loader了。
+```js
+import PDFJSWorker from 'pdfjs-dist/build/pdf.worker';
+PDFJS.GlobalWorkerOptions.workerPort = new PDFJSWorker();
+```
 
 ## 混淆
 `yarn build`后生成`dist/js/app.[hash].js`，发现可以比较容易地定位到加密和解密的关键方法。

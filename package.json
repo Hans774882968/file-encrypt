@@ -33,7 +33,8 @@
     "vue": "^3.2.13",
     "vue-pdf-embed": "^1.1.5",
     "vue-router": "^4.0.3",
-    "webpack": "^5.75.0"
+    "webpack": "^5.75.0",
+    "worker-loader": "^3.0.8"
   },
   "devDependencies": {
     "@babel/eslint-parser": "^7.12.16",

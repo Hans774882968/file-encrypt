@@ -15,9 +15,10 @@
 <script setup>
 import { toRefs, ref, watch } from 'vue';
 import * as PDFJS from 'pdfjs-dist';
+import PDFJSWorker from 'pdfjs-dist/build/pdf.worker';
 import { releaseChildCanvases, loadPDF } from './util';
 
-PDFJS.GlobalWorkerOptions.workerPort = new Worker('pdf.worker.js');
+PDFJS.GlobalWorkerOptions.workerPort = new PDFJSWorker();
 
 const emit = defineEmits(['progress', 'password-requested', 'load-failed', 'render-page-failed', 'rendered']);
 
