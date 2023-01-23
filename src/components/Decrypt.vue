@@ -38,6 +38,7 @@
 
     <el-form-item>
       <el-upload
+        class="select-file-to-decrypt"
         :on-change="handleSelectFile"
         action=""
         :auto-upload="false"
@@ -68,8 +69,8 @@ const emit = defineEmits(['decrypted']);
 
 const options = ref({
   file: null,
-  multiRoundDecryption: false,
-  decryptRoundCount: 1,
+  multiRoundDecryption: true,
+  decryptRoundCount: 10,
 });
 const decryptResultData = ref(null);
 const decryptResultBlob = ref(null);

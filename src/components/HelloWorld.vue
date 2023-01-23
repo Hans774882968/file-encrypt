@@ -41,7 +41,7 @@ import Decrypt from './Decrypt.vue';
 import VideoPlayer from './VideoPlayer.vue';
 import AudioPlayer from './AudioPlayer.vue';
 import TextViewer from './TextViewer.vue';
-import PdfViewer from './PDFViewer.vue';
+import PdfViewer from './pdf-viewer/PDFViewer.vue';
 import {
   isPNG, isJPG, isPDF, isMP3, isLegalHCTFFile, isVideo, isExcel, isGif, isWebp, mayBeMeaningfulText,
 } from '../utils/fileJudge';

@@ -41,6 +41,7 @@ See [Configuration Reference](https://cli.vuejs.org/config/).
 2. 在vue中配置webpack、webpack自定义插件的编写。`worker-loader`等loader，`WebpackObfuscator`等插件。
 3. 用Babel分析JS代码的AST，达到修改JS代码的目的。
 4. 懂得正向能让逆向更为顺利。相应地，前端可以考虑把这些可能有利于“社工”的漏洞补上。
+5. `jest`单元测试和`cypress`e2e测试的编写。
 
 ## 安装file-type
 安装这个也太难受了……首先`yarn add file-type`，然后`import { fileTypeFromBuffer } from 'file-type';`，不出意外你会得到错误：
@@ -350,6 +351,73 @@ chainWebpack: (config) => {
 import PDFJSWorker from 'pdfjs-dist/build/pdf.worker';
 PDFJS.GlobalWorkerOptions.workerPort = new PDFJSWorker();
 ```
+
+## 极简pdf阅读器实现
+我们希望一个pdf阅读器有以下功能：
+1. 可以展示单页，通过jumper和上一页、下一页按钮跳转页码。
+2. 可以勾选是否展示每一页。
+3. 展示单页和每一页的状态都可以搜索关键字。搜索有结果则进入搜索结果状态，展示有关键字的每一页pdf。关键字为空串或搜索无结果则回到进入搜索结果状态前所处的状态。如果现在勾选了展示每一页，接着进行若干次搜索，第`n`次（`n >= 1`）关键字为空串或搜索无结果，则回到展示每一页的状态。如果现在展示单页，且在第`x`页，接着进行若干次搜索，第`n`次（`n >= 1`）关键字为空串或搜索无结果，则回到展示第`x`页的状态。
+4. 在上一条功能点的基础上，支持查询多个关键字的功能。支持的运算符：交集和并集。过滤掉为空的关键字，若所有关键字都为空，则视为上一条功能点“关键字为空串”的情况。
+
+~~都说前端🐔⌨️🍚但这个对我来说真难写~~
+
+这个阅读器的核心是状态机。
+
+![state_machine_of_PDF_reader](./README_assets/1-state_machine_of_PDF_reader.png)
+
+```js
+export const SHOW_PAGES_STATES = {
+  SHOW_ALL: 10,
+  SHOW_ONE_PAGE: 20,
+  SHOW_SEARCH_RESULT: 30,
+};
+export const showPagesState = ref(SHOW_PAGES_STATES.SHOW_ONE_PAGE);
+```
+
+接下来梳理一下每个组件在每个状态中的表现。
+1. `SHOW_ONE_PAGE`。jumper、翻页器**展示**，展示每一页复选框**展示**、未勾选，搜索框**展示**。
+2. `SHOW_ALL`。jumper、翻页器不**展示**，展示每一页复选框**展示、勾选**，搜索框**展示**。
+3. `SHOW_SEARCH_RESULT`。jumper、翻页器不展示，展示每一页复选框**不展示**，搜索框**展示**。
+
+[实现代码传送门](https://github1s.com/Hans774882968/file-encrypt/blob/HEAD/src/components/pdf-viewer/PDFViewer.vue)
+
+从状态机可以看出，最容易出问题的是搜索关键字功能的函数。有必要为它编写一系列测试。
+
+### cypress实现e2e test
+`pdf.js`需要加载worker，而我只查到了一个不成熟的包具备赋予`jest`处理`worker`的能力，所以我们含泪选择学习成本更高的e2e测试。如果用`vue-cli`初始化项目时没有选择e2e，那么可以用以下命令补上：
+```bash
+vue add @vue/e2e-cypress
+```
+
+因为cypress打开的chrome窗口分辨率较小，而cypress在与未展示的元素交互时会报错，所以我们添加几个`cypress`自定义`commands`：
+```js
+Cypress.Commands.add(
+  'forceSelectPDF',
+  { prevSubject: 'element' },
+  (element, path) => cy.wrap(element).selectFile(path, { force: true }),
+);
+
+Cypress.Commands.add(
+  'forceClick',
+  { prevSubject: 'element' },
+  (element) => cy.wrap(element).click({ force: true }),
+);
+
+Cypress.Commands.add(
+  'forceInput',
+  { prevSubject: 'element' },
+  (element, text) => cy.wrap(element).clear().type(`${text}{enter}`, { force: true }),
+);
+```
+
+使用：
+```js
+cy.get('.select-file-to-decrypt .el-upload__input').forceSelectPDF(encryptedPDFPath);
+cy.get(nextPageBtnSelector).forceClick();
+cy.get(keywordInputSelector).forceInput('acmer');
+```
+
+[完整测试用例传送门](https://github1s.com/Hans774882968/file-encrypt/blob/HEAD/tests/e2e/specs/test.js)
 
 ## 混淆
 `yarn build`后生成`dist/js/app.[hash].js`，发现可以比较容易地定位到加密和解密的关键方法。

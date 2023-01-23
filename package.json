@@ -27,11 +27,11 @@
     "os-browserify": "^0.3.0",
     "path-browserify": "^1.0.1",
     "pdfjs-dist": "^3.2.146",
+    "progress-bar-webpack-plugin": "^2.1.0",
     "stream-browserify": "^3.0.0",
     "utf-8-validate": "^6.0.0",
     "video.js": "^7.20.3",
     "vue": "^3.2.13",
-    "vue-pdf-embed": "^1.1.5",
     "vue-router": "^4.0.3",
     "webpack": "^5.75.0",
     "worker-loader": "^3.0.8"

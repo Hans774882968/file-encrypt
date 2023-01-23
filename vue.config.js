@@ -2,6 +2,7 @@ const { defineConfig } = require('@vue/cli-service');
 const webpack = require('webpack');
 const path = require('path');
 const WebpackObfuscator = require('webpack-obfuscator');
+const ProgressBarPlugin = require('progress-bar-webpack-plugin');
 const RemoveSensitiveInfoPlugin = require('./remove-sensitive-info-plugin');
 const { AddCopyrightPlugin } = require('./add-copyright-plugin');
 
@@ -50,6 +51,7 @@ module.exports = defineConfig({
       new webpack.NormalModuleReplacementPlugin(/node:/, (resource) => {
         resource.request = resource.request.replace(/^node:/, '');
       }),
+      new ProgressBarPlugin(),
       ...getObfuscatePlugins(),
     ],
     externals: {
