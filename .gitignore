@@ -4,6 +4,7 @@ node_modules
 /dist-before-obfuscator
 /dist-before-pdf-viewer
 *-inspect.js
+*.hctf
 
 
 # local env files

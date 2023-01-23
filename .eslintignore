@@ -1,1 +1,7 @@
 public/pdf.worker.js
+.DS_Store
+node_modules
+/dist
+/dist-before-obfuscator
+/dist-before-pdf-viewer
+*-inspect.js
