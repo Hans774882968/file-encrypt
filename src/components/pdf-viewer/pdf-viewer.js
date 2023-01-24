@@ -32,3 +32,7 @@ export function changeToShowOnePageState() {
 export function changeToShowAllPagesState() {
   showPagesState.value = SHOW_PAGES_STATES.SHOW_ALL;
 }
+
+export const PDF_PAGE_CONTAINER_CLASS_NAME = 'pdf-viewer-page';
+
+export const getPDFPageSelector = (page) => `.pdf-viewer-content .${PDF_PAGE_CONTAINER_CLASS_NAME}-${page}`;

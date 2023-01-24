@@ -9,7 +9,7 @@
           <span v-if="shouldShowAllPages">
             共 {{ pageCount }} 页
           </span>
-          <span v-if="shouldShowOnePage">
+          <div v-if="shouldShowOnePage" class="page-change-btn-container">
             <button class="last-page-btn" :disabled="currentPage <= 1" @click="currentPage--">❮</button>
             <span class="current-page">
               {{ currentPage }}
@@ -19,26 +19,26 @@
               {{ pageCount }}
             </span>
             <button class="next-page-btn" :disabled="currentPage >= pageCount" @click="currentPage++">❯</button>
-          </span>
+          </div>
 
-          <el-input-number
+          <!-- 目前每次状态变化输入框页码初值都是1，是否需要缓存功能？ -->
+          <page-jumper
             v-if="shouldShowOnePage"
-            v-model="currentInputPageNumber"
-            :min="1"
-            :max="pageCount"
-            :step="1"
-            :precision="0"
-            @keyup.enter="changeCurrentPage"
+            class="one-page-jumper-container"
+            :page-count="pageCount"
+            @change-page="changeCurrentPage"
           />
 
-          <label v-if="!shouldShowSearchResultPages" for="show-all-pages" class="show-all-pages">
-            <input
-              v-model="shouldShowAllPagesModel"
-              class="checkbox"
-              type="checkbox"
-            >
+          <page-jumper
+            v-if="shouldShowAllPages"
+            class="all-pages-jumper-container"
+            :page-count="pageCount"
+            @change-page="scrollToPage"
+          />
+
+          <el-checkbox v-if="!shouldShowSearchResultPages" v-model="shouldShowAllPagesModel" class="show-all-pages">
             展示每一页
-          </label>
+          </el-checkbox>
         </el-row>
 
         <el-row class="pdf-viewer-header-search">
@@ -55,7 +55,7 @@
             placement="top"
           >
             <template #content>
-              后续会支持多个关键字查询
+              1. 搜索框按回车触发搜索动作。<br>2. 后续会支持多个关键字查询，在任意搜索框按回车即可触发搜索动作，所有搜索框内容均为空即可跳出搜索状态。
             </template>
             <el-icon :size="20">
               <question-filled />
@@ -69,8 +69,18 @@
           </el-icon>
         </el-row>
 
-        <el-row v-if="shouldShowSearchResultPages">
-          在以下页码中找到：<span class="search-result">{{ currentSearchResultPages }}</span>
+        <el-row v-if="shouldShowSearchResultPages" class="search-result">
+          在以下页码中找到：
+          <el-button
+            v-for="searchResultPage in currentSearchResultPages"
+            :key="searchResultPage"
+            class="search-result-link"
+            type="primary"
+            link
+            @click="scrollToSearchResultPage(searchResultPage)"
+          >
+            {{ searchResultPage }}
+          </el-button>
         </el-row>
       </template>
     </div>
@@ -103,9 +113,10 @@ import {
   changeToShowOnePageState, changeToShowSearchResultPagesState, shouldShowAllPages,
   shouldShowOnePage, showOnePageStateMeta, changeToShowAllPagesState,
   shouldShowSearchResultPages, showPagesStateBeforeShowSearchResultIsShowAll, showPagesStateBeforeShowSearchResultIsShowOne,
-  showPagesStateBeforeShowSearchResult, showPagesState,
+  showPagesStateBeforeShowSearchResult, showPagesState, getPDFPageSelector,
 } from './pdf-viewer';
 import { loadPDFStringsOfAllPagesLazily, pdfPagesThatHaveStr } from './pdf-viewer-search';
+import PageJumper from './PageJumper.vue';
 
 const props = defineProps({
   pdfData: {
@@ -119,7 +130,6 @@ const isLoading = ref(true);
 const pageCount = ref(1);
 const currentPage = ref(1);
 const currentSearchResultPages = ref([]);
-const currentInputPageNumber = ref(1);
 const currentSearchKeyword = ref('');
 const pdfWidth = ref(1600);
 const pdfPageContainerStyle = ref({
@@ -133,12 +143,23 @@ const currentRenderPage = computed(() => {
   return currentSearchResultPages.value;
 });
 
-function changeCurrentPage() {
-  if (!currentInputPageNumber.value || Number.isNaN(currentInputPageNumber.value)) {
+function changeCurrentPage(currentInputPageNumber) {
+  if (!currentInputPageNumber || Number.isNaN(currentInputPageNumber)) {
     ElMessage.warning('请输入合法的页码');
     return;
   }
-  currentPage.value = currentInputPageNumber.value;
+  currentPage.value = currentInputPageNumber;
+}
+
+function scrollToPage(page) {
+  const selector = getPDFPageSelector(page);
+  const ele = document.querySelector(selector);
+  if (!ele) return;
+  ele.scrollIntoView({ behavior: 'smooth' });
+}
+
+function scrollToSearchResultPage(searchResultPage) {
+  scrollToPage(searchResultPage);
 }
 
 function searchTextInPDF() {
@@ -236,12 +257,21 @@ function handleDocumentRendered(pdfDocument) {
     justify-content: space-between;
     align-items: center;
 
-    .show-all-pages {
-      cursor: pointer;
+    .page-change-btn-container {
+      display: flex;
+      font-size: 18px;
 
-      .checkbox {
-        cursor: pointer;
+      .current-page, .page-count {
+        margin: 0 16px;
       }
+    }
+
+    // 未选中时重写，选中时保持原有样式
+    :deep(.el-checkbox__label) {
+      color: #ddd;
+    }
+    :deep(.el-checkbox__input.is-checked+.el-checkbox__label) {
+      color: #409eff;
     }
   }
 

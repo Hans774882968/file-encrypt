@@ -3,7 +3,7 @@
     <div
       v-for="pageNum in pageNums"
       :key="pageNum"
-      :class="`pdf-viewer-page pdf-viewer-page-${pageNum}`"
+      :class="`pdf-viewer-page ${pdfPageContainerClassName}-${pageNum}`"
       :style="pdfPageContainerStyle"
     >
       <canvas />
@@ -63,9 +63,14 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
+  pdfPageContainerClassName: {
+    type: String,
+    default: 'pdf-viewer-page',
+  },
 });
 const {
-  width, height, renderPages, pdfData, rotation, pdfPageContainerStyle,
+  width, height, renderPages, pdfData, rotation,
+  pdfPageContainerStyle, pdfPageContainerClassName,
 } = toRefs(props);
 
 const pdfViewerContainer = ref(null);

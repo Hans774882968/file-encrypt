@@ -417,6 +417,21 @@ cy.get(nextPageBtnSelector).forceClick();
 cy.get(keywordInputSelector).forceInput('acmer');
 ```
 
+部分常用API：
+- `cy.get(selector)`：通过选择器获取DOM元素列表。但我们大多数情况下期望仅获取1个元素，这种情况下可以接一些操作，比如：点击`cy.get(selector).click()`、在输入框输入foobar并按回车`cy.get(selector).clear().type('$foobar{enter}', { force: true });`。[传送门](https://docs.cypress.io/api/commands/get)
+- `.should()`：创建一个断言。比如：元素存在、不存在`cy.get(selector).should('exist'), cy.get(selector).should('not.exist')`，元素disabled`cy.get(selector).should('be.disabled')`。[传送门](https://docs.cypress.io/api/commands/should)
+- `.each()`：似乎这是cypress遍历数组的最主要方式。[传送门](https://docs.cypress.io/api/commands/each)。例子：PDF阅读器要展示搜索结果，我们希望搜索结果符合预期，而搜索结果是一组页码。形式化地说，即有一组button`<div><button>2</button><button>3</button></div>`，我们要把它们的innerText收集成数组，并和给定的数组比较。代码如下：
+
+```js
+cy.get(searchResultLinksSelector)
+  .each((link, i) => {
+    const page = Number(link.text());
+    expect(page).to.equal(answer[i]);
+  });
+```
+
+提问：是否有办法只执行一次断言，即`expect(pageArray).to.deep.equal(answer)`？佬们教教我！
+
 [完整测试用例传送门](https://github1s.com/Hans774882968/file-encrypt/blob/HEAD/tests/e2e/specs/test.js)
 
 ## 混淆
@@ -776,6 +791,8 @@ class RemoveSensitiveInfoPlugin extends OnlyProcessJSFilePlugin {
 ## TODO
 1. 支持flv播放。
 2. 支持加密方法的选择。但是因为设计文件格式时没有预留位置，只能放弃了。
+3. PDF阅读器支持多个关键字查询、e2e测试支持“随机游走”（即生成一个状态序列，根据状态的转变来写断言）。
+4. 可执行文件（exe、dll、elf）的基本信息展示、hex viewer。
 
 ## 参考资料
 1. Cannot find module 'strtok3/core' from 'node_modules/file-type/core.js'：https://stackoverflow.com/questions/70325365/importing-pure-esm-module-in-ts-project-fails-jest-test-with-import-error

@@ -1,21 +1,46 @@
 // https://docs.cypress.io/api/table-of-contents
 import shuffle from 'lodash/shuffle';
+import sample from 'lodash/sample';
 
 // The following tests require file 新冠自我康复手册中文版-WHO-7轮.hctf which is an encrypted pdf.
 const encryptedPDFPath = '新冠自我康复手册中文版-WHO-7轮.hctf';
 const encryptedPDFPageCount = 25;
+
+const SEARCH_KEYWORDS_HAVE_RESULT_Q_A = [
+  { keyword: '疼痛', answer: [3, 8, 13, 16, 22, 24] },
+  { keyword: 'tt', answer: [18, 21] },
+  { keyword: '注意力', answer: [3, 8, 14, 17, 19, 21, 22, 24] },
+  { keyword: '工作时间', answer: [19] },
+  { keyword: '网', answer: [18, 25] },
+  { keyword: 'COVID', answer: [1, 2] },
+  { keyword: '持续', answer: [2, 22, 23] },
+  { keyword: '家人', answer: [2, 14, 19, 21, 24] },
+  { keyword: '医务人员', answer: [1, 2, 3, 4, 9, 13, 16, 17, 22] },
+  { keyword: '证据', answer: [2] },
+  { keyword: '服务', answer: [1, 2, 25] },
+  { keyword: '新冠患者', answer: [2, 19] },
+];
+// 由于我的算法有缺陷（要完善它很难吧？），'持续12周'无结果，但实际上在第2页有结果
+const SEARCH_KEYWORDS_NOT_HAVE_RESULT = [
+  'acmer', 'acmer2000', 'acmer2001', 'ctfer2009', '持续12周',
+];
+
+const selectFileToDecryptSelector = '.select-file-to-decrypt .el-upload__input';
 const currentPageTextSelector = '.current-page';
 const pdfViewerHeaderBasicSelector = '.pdf-viewer-header-basic';
 const lastPageBtnSelector = '.pdf-viewer-header-basic .last-page-btn';
 const nextPageBtnSelector = '.pdf-viewer-header-basic .next-page-btn';
-const pageJumperSelector = '.pdf-viewer-header-basic .el-input__inner';
-const showAllPagesCheckboxSelector = '.pdf-viewer-header-basic .show-all-pages .checkbox';
+const onePageJumperSelector = '.pdf-viewer-header-basic .one-page-jumper-container .el-input__inner';
+const allPagesJumperSelector = '.pdf-viewer-header-basic .all-pages-jumper-container .el-input__inner';
+const showAllPagesCheckboxSelector = '.pdf-viewer-header-basic .show-all-pages .el-checkbox__label';
 const keywordInputSelector = '.pdf-viewer-header-search .keyword-input .el-input__inner';
 const searchResultSelector = '.pdf-viewer-header .search-result';
+const searchResultLinksSelector = '.pdf-viewer-header .search-result .search-result-link';
 
 before(() => {
   cy.visit('/');
-  cy.get('.select-file-to-decrypt .el-upload__input').forceSelectPDF(encryptedPDFPath);
+  cy.get(selectFileToDecryptSelector).forceSelectPDF(encryptedPDFPath);
+  // 如果第一次不能在既定时间内加载出PDF，请刷新一次，之后一般都能加载出PDF了。
   cy.get(lastPageBtnSelector, { timeout: 10000 }).should('be.disabled');
 });
 
@@ -28,7 +53,22 @@ describe('PDFViewer', () => {
   }
 
   function jumpToPageNumber(page) {
-    cy.get(pageJumperSelector).clear().type(`${page}{enter}`, { force: true });
+    cy.get(onePageJumperSelector).clear().type(`${page}{enter}`, { force: true });
+  }
+
+  function searchKeywordsThatHaveResult() {
+    const { keyword: text, answer } = sample(SEARCH_KEYWORDS_HAVE_RESULT_Q_A);
+    cy.get(keywordInputSelector).forceInput(text);
+    cy.get(searchResultLinksSelector)
+      .each((link, i) => {
+        const page = Number(link.text());
+        expect(page).to.equal(answer[i]);
+      });
+  }
+
+  function searchKeywordsThatNotHaveResult() {
+    const text = sample(SEARCH_KEYWORDS_NOT_HAVE_RESULT);
+    cy.get(keywordInputSelector).forceInput(text);
   }
 
   function assertShowingAllPages() {
@@ -36,7 +76,8 @@ describe('PDFViewer', () => {
     cy.get(currentPageTextSelector).should('not.exist');
     cy.get(lastPageBtnSelector).should('not.exist');
     cy.get(nextPageBtnSelector).should('not.exist');
-    cy.get(pageJumperSelector).should('not.exist');
+    cy.get(onePageJumperSelector).should('not.exist');
+    cy.get(allPagesJumperSelector).should('exist');
   }
   function assertNotShowingSearchResult() {
     cy.get(searchResultSelector).should('not.exist');
@@ -88,24 +129,22 @@ describe('PDFViewer', () => {
     const initialPage = 15;
     jumpToPageNumber(initialPage);
     assertCurrentPage(initialPage);
-    cy.get(keywordInputSelector).forceInput('疼痛');
-    cy.get(searchResultSelector).contains('[ 3, 8, 13, 16, 22, 24 ]');
+    searchKeywordsThatHaveResult();
     cy.get(keywordInputSelector).forceInput(''); // 输入空串，回到上次的状态
 
     assertCurrentPage(initialPage);
     const initialPage2 = 17;
     jumpToPageNumber(initialPage2);
     assertCurrentPage(initialPage2);
-    cy.get(keywordInputSelector).forceInput('tt');
-    cy.get(searchResultSelector).contains('[ 18, 21 ]');
-    cy.get(keywordInputSelector).forceInput('acmer'); // 无结果
+    searchKeywordsThatHaveResult();
+    searchKeywordsThatNotHaveResult();
     assertNotShowingSearchResult();
 
     assertCurrentPage(initialPage2);
     const initialPage3 = 5;
     jumpToPageNumber(initialPage3);
     assertCurrentPage(initialPage3);
-    cy.get(keywordInputSelector).forceInput('acmer2000'); // 无结果
+    searchKeywordsThatNotHaveResult();
     assertCurrentPage(initialPage3);
     const initialPage4 = 7;
     jumpToPageNumber(initialPage4);
@@ -113,7 +152,7 @@ describe('PDFViewer', () => {
 
     cy.get(showAllPagesCheckboxSelector).forceClick();
     assertShowingAllPages();
-    cy.get(keywordInputSelector).forceInput('acmer2001'); // 无结果
+    searchKeywordsThatNotHaveResult();
     assertShowingAllPages();
     cy.get(showAllPagesCheckboxSelector).forceClick();
     assertCurrentPage(initialPage4);
@@ -121,8 +160,7 @@ describe('PDFViewer', () => {
     cy.get(nextPageBtnSelector).forceClick();
     assertCurrentPage(initialPage5);
 
-    cy.get(keywordInputSelector).forceInput('注意力');
-    cy.get(searchResultSelector).contains('[ 3, 8, 14, 17, 19, 21, 22, 24 ]');
+    searchKeywordsThatHaveResult();
     cy.get(keywordInputSelector).forceInput(''); // 输入空串，回到上次的状态
     assertCurrentPage(initialPage5);
     cy.get(showAllPagesCheckboxSelector).forceClick();
@@ -136,11 +174,10 @@ describe('PDFViewer', () => {
     assertShowingAllPages();
     cy.get(keywordInputSelector).forceInput(''); // 输入空串，回到上次的状态
     assertShowingAllPages();
-    cy.get(keywordInputSelector).forceInput('ctfer2002'); // 无结果
+    searchKeywordsThatNotHaveResult();
     assertShowingAllPages();
-    cy.get(keywordInputSelector).forceInput('工作时间');
-    cy.get(searchResultSelector).contains('[ 19 ]');
-    cy.get(keywordInputSelector).forceInput('ctfer2003'); // 无结果
+    searchKeywordsThatHaveResult();
+    searchKeywordsThatNotHaveResult();
     assertShowingAllPages();
     cy.get(showAllPagesCheckboxSelector).forceClick();
     assertCurrentPage(initialPage6);
@@ -149,27 +186,24 @@ describe('PDFViewer', () => {
     jumpToPageNumber(initialPage7 + 1);
     cy.get(lastPageBtnSelector).forceClick();
     assertCurrentPage(initialPage7);
-    cy.get(keywordInputSelector).forceInput('ctfer2004'); // 无结果
+    searchKeywordsThatNotHaveResult();
     assertCurrentPage(initialPage7);
     cy.get(keywordInputSelector).forceInput(''); // 输入空串，回到上次的状态
     assertCurrentPage(initialPage7);
-    cy.get(keywordInputSelector).forceInput('ctfer2005'); // 无结果
+    searchKeywordsThatNotHaveResult();
     assertCurrentPage(initialPage7);
-    cy.get(keywordInputSelector).forceInput('网');
-    cy.get(searchResultSelector).contains('[ 18, 25 ]');
+    searchKeywordsThatHaveResult();
     cy.get(keywordInputSelector).forceInput(''); // 输入空串，回到上次的状态
     assertCurrentPage(initialPage7);
     cy.get(showAllPagesCheckboxSelector).forceClick();
     assertShowingAllPages();
-    cy.get(keywordInputSelector).forceInput('COVID');
-    cy.get(searchResultSelector).contains('[ 1, 2 ]');
-    cy.get(keywordInputSelector).forceInput('ctfer2006'); // 无结果
+    searchKeywordsThatHaveResult();
+    searchKeywordsThatNotHaveResult();
     assertShowingAllPages();
-    cy.get(keywordInputSelector).forceInput('持续');
-    cy.get(searchResultSelector).contains('[ 2, 22, 23 ]');
+    searchKeywordsThatHaveResult();
     cy.get(keywordInputSelector).forceInput(''); // 输入空串，回到上次的状态
     assertShowingAllPages();
-    cy.get(keywordInputSelector).forceInput('ctfer2007'); // 无结果
+    searchKeywordsThatNotHaveResult();
     assertShowingAllPages();
     cy.get(keywordInputSelector).forceInput(''); // 输入空串，回到上次的状态
     assertShowingAllPages();
@@ -184,12 +218,12 @@ describe('PDFViewer', () => {
     assertShowingAllPages();
     cy.get(showAllPagesCheckboxSelector).forceClick();
     assertCurrentPage(initialPage8);
-    cy.get(keywordInputSelector).forceInput('ctfer2008'); // 无结果
+    searchKeywordsThatNotHaveResult();
     assertCurrentPage(initialPage8);
     cy.get(showAllPagesCheckboxSelector).forceClick();
     assertShowingAllPages();
     for (let i = 0; i < 2; ++i) {
-      cy.get(keywordInputSelector).forceInput('持续12周'); // 由于我的算法有缺陷（要完善它很难吧？），这个无结果，但实际上在第2页有结果
+      searchKeywordsThatNotHaveResult();
       assertShowingAllPages();
       cy.get(keywordInputSelector).forceInput(''); // 输入空串，回到上次的状态
       assertShowingAllPages();
@@ -198,9 +232,8 @@ describe('PDFViewer', () => {
     assertCurrentPage(initialPage8);
     cy.get(keywordInputSelector).forceInput(''); // 输入空串，回到上次的状态
     assertCurrentPage(initialPage8);
-    cy.get(keywordInputSelector).forceInput('家人');
-    cy.get(searchResultSelector).contains('[ 2, 14, 19, 21, 24 ]');
-    cy.get(keywordInputSelector).forceInput('ctfer2009'); // 无结果
+    searchKeywordsThatHaveResult();
+    searchKeywordsThatNotHaveResult();
     assertCurrentPage(initialPage8);
     cy.get(keywordInputSelector).forceInput(''); // 输入空串，回到上次的状态
     assertCurrentPage(initialPage8);
@@ -213,23 +246,17 @@ describe('PDFViewer', () => {
       cy.get(showAllPagesCheckboxSelector).forceClick();
     }
     assertShowingAllPages();
-    cy.get(keywordInputSelector).forceInput('ctfer2010'); // 无结果
+    searchKeywordsThatNotHaveResult();
     assertShowingAllPages();
     cy.get(keywordInputSelector).forceInput(''); // 输入空串，回到上次的状态
     assertShowingAllPages();
-    for (let i = 0; i < 2; ++i) {
-      cy.get(keywordInputSelector).forceInput('医务人员');
-      cy.get(searchResultSelector).contains('[ 1, 2, 3, 4, 9, 13, 16, 17, 22 ]');
-      cy.get(keywordInputSelector).forceInput('证据');
-      cy.get(searchResultSelector).contains('[ 2 ]');
+    for (let i = 0; i < 4; ++i) {
+      searchKeywordsThatHaveResult();
     }
-    cy.get(keywordInputSelector).forceInput('ctfer2011'); // 无结果
+    searchKeywordsThatNotHaveResult();
     assertShowingAllPages();
-    for (let i = 0; i < 2; ++i) {
-      cy.get(keywordInputSelector).forceInput('服务');
-      cy.get(searchResultSelector).contains('[ 1, 2, 25 ]');
-      cy.get(keywordInputSelector).forceInput('新冠患者');
-      cy.get(searchResultSelector).contains('[ 2, 19 ]');
+    for (let i = 0; i < 4; ++i) {
+      searchKeywordsThatHaveResult();
     }
     cy.get(keywordInputSelector).forceInput(''); // 输入空串，回到上次的状态
     assertShowingAllPages();
