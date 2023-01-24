@@ -25,6 +25,7 @@ const SEARCH_KEYWORDS_NOT_HAVE_RESULT = [
   'acmer', 'acmer2000', 'acmer2001', 'ctfer2009', '持续12周',
 ];
 
+const warningToastSelector = '.el-message__content';
 const selectFileToDecryptSelector = '.select-file-to-decrypt .el-upload__input';
 const currentPageTextSelector = '.current-page';
 const pdfViewerHeaderBasicSelector = '.pdf-viewer-header-basic';
@@ -54,6 +55,10 @@ describe('PDFViewer', () => {
 
   function jumpToPageNumber(page) {
     cy.get(onePageJumperSelector).clear().type(`${page}{enter}`, { force: true });
+  }
+
+  function scrollToPageNumber(page) {
+    cy.get(allPagesJumperSelector).clear().type(`${page}{enter}`, { force: true });
   }
 
   function searchKeywordsThatHaveResult() {
@@ -123,6 +128,29 @@ describe('PDFViewer', () => {
     jumpToPageNumber(bigPage);
     assertCurrentPage(encryptedPDFPageCount);
     cy.get(nextPageBtnSelector).should('be.disabled');
+  });
+
+  it('Page jumper toast', () => {
+    jumpToPageNumber('');
+    cy.get(warningToastSelector).contains('请输入合法的页码');
+    /*
+     * 下面这个test可能不成功，因为：element-plus input-number输入1-3，速度慢则
+     * 解析为1，速度快则解析为null。前者合法后者不合法。
+     */
+    jumpToPageNumber('1-3');
+    cy.get(warningToastSelector).contains('请输入合法的页码');
+    assertCurrentPage(1);
+    jumpToPageNumber(15);
+    assertCurrentPage(15);
+
+    cy.get(showAllPagesCheckboxSelector).forceClick();
+    assertShowingAllPages();
+    scrollToPageNumber('');
+    cy.get(warningToastSelector).contains('请输入合法的页码');
+    scrollToPageNumber('1-5');
+    cy.get(warningToastSelector).contains('请输入合法的页码');
+    cy.get(showAllPagesCheckboxSelector).forceClick();
+    assertCurrentPage(15);
   });
 
   it.only('States change correctly', () => {

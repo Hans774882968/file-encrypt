@@ -6,10 +6,10 @@
       </template>
       <template v-else>
         <el-row class="pdf-viewer-header-basic">
-          <span v-if="shouldShowAllPages">
+          <span v-if="currentState.shouldShowAllPages.value">
             共 {{ pageCount }} 页
           </span>
-          <div v-if="shouldShowOnePage" class="page-change-btn-container">
+          <div v-if="currentState.shouldShowOnePage.value" class="page-change-btn-container">
             <button class="last-page-btn" :disabled="currentPage <= 1" @click="currentPage--">❮</button>
             <span class="current-page">
               {{ currentPage }}
@@ -23,20 +23,20 @@
 
           <!-- 目前每次状态变化输入框页码初值都是1，是否需要缓存功能？ -->
           <page-jumper
-            v-if="shouldShowOnePage"
+            v-if="currentState.shouldShowOnePage.value"
             class="one-page-jumper-container"
             :page-count="pageCount"
             @change-page="changeCurrentPage"
           />
 
           <page-jumper
-            v-if="shouldShowAllPages"
+            v-if="currentState.shouldShowAllPages.value"
             class="all-pages-jumper-container"
             :page-count="pageCount"
             @change-page="scrollToPage"
           />
 
-          <el-checkbox v-if="!shouldShowSearchResultPages" v-model="shouldShowAllPagesModel" class="show-all-pages">
+          <el-checkbox v-if="!currentState.shouldShowSearchResultPages.value" v-model="shouldShowAllPagesModel" class="show-all-pages">
             展示每一页
           </el-checkbox>
         </el-row>
@@ -69,7 +69,7 @@
           </el-icon>
         </el-row>
 
-        <el-row v-if="shouldShowSearchResultPages" class="search-result">
+        <el-row v-if="currentState.shouldShowSearchResultPages.value" class="search-result">
           在以下页码中找到：
           <el-button
             v-for="searchResultPage in currentSearchResultPages"
@@ -110,10 +110,7 @@ import {
 } from 'vue';
 import PdfJsEmbed from '../pdf-js-vue3-embed/PDFJSEmbed.vue';
 import {
-  changeToShowOnePageState, changeToShowSearchResultPagesState, shouldShowAllPages,
-  shouldShowOnePage, showOnePageStateMeta, changeToShowAllPagesState,
-  shouldShowSearchResultPages, showPagesStateBeforeShowSearchResultIsShowAll, showPagesStateBeforeShowSearchResultIsShowOne,
-  showPagesStateBeforeShowSearchResult, showPagesState, getPDFPageSelector,
+  currentState, stateBeforeShowSearchResult, getPDFPageSelector,
 } from './pdf-viewer';
 import { loadPDFStringsOfAllPagesLazily, pdfPagesThatHaveStr } from './pdf-viewer-search';
 import PageJumper from './PageJumper.vue';
@@ -138,16 +135,12 @@ const pdfPageContainerStyle = ref({
 });
 
 const currentRenderPage = computed(() => {
-  if (shouldShowAllPages.value) return null;
-  if (shouldShowOnePage.value) return currentPage.value;
+  if (currentState.shouldShowAllPages.value) return null;
+  if (currentState.shouldShowOnePage.value) return currentPage.value;
   return currentSearchResultPages.value;
 });
 
 function changeCurrentPage(currentInputPageNumber) {
-  if (!currentInputPageNumber || Number.isNaN(currentInputPageNumber)) {
-    ElMessage.warning('请输入合法的页码');
-    return;
-  }
   currentPage.value = currentInputPageNumber;
 }
 
@@ -164,18 +157,18 @@ function scrollToSearchResultPage(searchResultPage) {
 
 function searchTextInPDF() {
   // 每次使用搜索功能都需要记录 currentPage showPagesStateBeforeShowSearchResult
-  showOnePageStateMeta.lastPageNumber = currentPage.value;
-  if (!shouldShowSearchResultPages.value) {
-    showPagesStateBeforeShowSearchResult.value = showPagesState.value;
+  currentState.meta.lastPageNumber = currentPage.value;
+  if (!currentState.shouldShowSearchResultPages.value) {
+    stateBeforeShowSearchResult.setState(currentState.state.value);
   }
 
   const gotoLastState = () => {
-    if (showPagesStateBeforeShowSearchResultIsShowAll.value) {
-      changeToShowAllPagesState();
+    if (stateBeforeShowSearchResult.shouldShowAllPages.value) {
+      currentState.changeToShowAllPagesState();
     }
-    if (showPagesStateBeforeShowSearchResultIsShowOne.value) {
-      changeToShowOnePageState();
-      currentPage.value = showOnePageStateMeta.lastPageNumber;
+    if (stateBeforeShowSearchResult.shouldShowOnePage.value) {
+      currentState.changeToShowOnePageState();
+      currentPage.value = currentState.meta.lastPageNumber;
     }
   };
 
@@ -191,17 +184,17 @@ function searchTextInPDF() {
     return;
   }
 
-  changeToShowSearchResultPagesState();
+  currentState.changeToShowSearchResultPagesState();
   currentSearchResultPages.value = pageNums;
 }
 
 const shouldShowAllPagesModel = computed({
   get() {
-    return shouldShowAllPages.value;
+    return currentState.shouldShowAllPages.value;
   },
   set(value) {
-    if (!value) changeToShowOnePageState();
-    else changeToShowAllPagesState();
+    if (!value) currentState.changeToShowOnePageState();
+    else currentState.changeToShowAllPagesState();
   },
 });
 

@@ -16,6 +16,7 @@
 </template>
 
 <script setup>
+import { ElMessage } from 'element-plus';
 import { toRefs, ref } from 'vue';
 
 const emit = defineEmits(['changePage']);
@@ -31,6 +32,10 @@ const { pageCount } = toRefs(props);
 const currentInputPageNumber = ref(1);
 
 function changeCurrentPage() {
+  if (!currentInputPageNumber.value || Number.isNaN(currentInputPageNumber.value)) {
+    ElMessage.warning('请输入合法的页码');
+    return;
+  }
   emit('changePage', currentInputPageNumber.value);
 }
 </script>
