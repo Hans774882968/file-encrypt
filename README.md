@@ -46,6 +46,7 @@ See [Configuration Reference](https://cli.vuejs.org/config/).
 3. 用Babel分析JS代码的AST，达到修改JS代码的目的。
 4. 懂得正向能让逆向更为顺利。相应地，前端可以考虑把这些可能有利于“社工”的漏洞补上。
 5. `jest`单元测试和`cypress`e2e测试的编写。
+6. 为萌新送上部分npm包源码简析。如：`lodash/sampleSize`、`clipboard.js`。
 
 ## 文件加解密功能实现
 ### 文件格式设计
@@ -254,8 +255,8 @@ exports: {
 
 1只需要做一次。但后续每次`yarn`重新安装依赖，都要把2和3重做一次，才能保证`yarn test:unit`、`yarn build`都正常。
 
-## 实现代码预览和markdown渲染
-代码高亮使用门槛最低的方案：`highlight.js`。
+## 实现代码预览
+代码高亮实现成本最低的方案显然是：`highlight.js`。
 ```bash
 yarn add highlight.js --registry=https://registry.npm.taobao.org
 ```
@@ -278,7 +279,7 @@ app.config.globalProperties.$hljs = hljs;
 
 Vue组件中使用：
 ```js
-const codeBlock = ref(null);
+const codeBlock = ref(null); // DOM元素
 nextTick(() => proxy.$hljs.highlightElement(codeBlock.value))
 ```
 
@@ -371,16 +372,70 @@ onMounted(() => {
 </script>
 ```
 
+### clipboard.js源码简析
+原生JS实现点击DOM元素复制功能的原理和`clipboard.js`一样的。[核心代码传送门](https://github1s.com/zenorocha/clipboard.js/blob/master/src/actions/copy.js)
+
+```js
+import select from 'select'; // Programmatically select the text of a HTML element.
+import command from '../common/command';
+import createFakeElement from '../common/create-fake-element'; // 创建一个textarea并保证其视觉上不可见
+
+const fakeCopyAction = (value, options) => {
+  const fakeElement = createFakeElement(value);
+  options.container.appendChild(fakeElement);
+  const selectedText = select(fakeElement);
+  command('copy'); // document.execCommand
+  fakeElement.remove();
+
+  return selectedText;
+};
+```
+
+发现的一些包：
+- tiny-emitter：事件触发器。用于实现`clipboard.on('success', f)`这种事件触发和监听的功能。
+- good-listener：更优雅地写出DOM元素监听事件的代码。
+- select：Programmatically select the text of a HTML element.
+
+## markdown渲染功能
+我们一般希望markdown文档能同时看到渲染前后的文本，所以我们不妨均分两列，同时展示代码高亮和markdown渲染结果，渲染前的文本直接复用上面的代码高亮组件实现展示。
+
+```html
+<template>
+  <div class="text-viewer-container">
+    <code-viewer :text-data="textData" :sub-element-count="subElementCount" />
+    <markdown-container v-if="markdownHTMLCode" :html-code="markdownHTMLCode" :sub-element-count="subElementCount" />
+  </div>
+</template>
+```
+
+markdown渲染使用`marked`即可。根据其文档，强烈建议用`DOMPurify.sanitize`降低XSS风险。
+
+```js
+import { marked } from 'marked';
+import * as DOMPurify from 'dompurify';
+
+function parseMarkdown() {
+  try {
+    const unsafeMarkdownHTMLCode = marked.parse(textData.value);
+    return DOMPurify.sanitize(unsafeMarkdownHTMLCode);
+  } catch (e) {
+    return '';
+  }
+}
+markdownHTMLCode.value = parseMarkdown();
+```
+
 ## PDF预览
 一开始想用`vue-pdf-embed`。`vue-pdf-embed`是一个基于`pdf.js`二次开发的vue组件，大大降低了使用门槛。
 ```bash
 yarn add vue-pdf-embed
 ```
 
-但它有一个神秘bug：对于vue3.2，第偶数次输入PDF不能加载。我暂时没有能力定位并修复它，只好选择了另一个方案：模仿`vue-pdf-embed`，写出适用于vue3.2的版本。
+但它有一个神秘bug：对于vue3.2，第偶数次输入PDF不能加载。我暂时没有能力定位并修复它，只好选择了另一个方案：模仿`vue-pdf-embed`，写出适用于vue3.2的版本。~~之后完善亿下大概会发布一个npm包~~？
+
+[实现代码传送门](https://github.com/Hans774882968/file-encrypt/blob/main/src/components/pdf-js-vue3-embed/PDFJSEmbed.vue)
 
 ### 使用pdf.js
-
 ```bash
 yarn add pdfjs-dist
 ```
@@ -475,6 +530,11 @@ import PDFJSWorker from 'pdfjs-dist/build/pdf.worker';
 PDFJS.GlobalWorkerOptions.workerPort = new PDFJSWorker();
 ```
 
+### 关于worker-loader多提几句
+`worker-loader`会导致打包结果更大，这时我们可能会希望改用CDN。`PDFJS.GlobalWorkerOptions.workerSrc`写死CDN自然省事，但每次`pdfjs-dist`依赖版本升级，而CDN未升级，是否会带来风险呢？对于这个问题，我有一个粗糙的思路：
+
+编写一个webpack插件，进行代码替换。CDN的路径是有规律的，比如`https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.2.146/pdf.worker.js`，由前缀、包名、版本号、后缀组成。我们读取`package.json`的依赖版本号，生成CDN路径字符串，然后找到`PDFJS.GlobalWorkerOptions.workerSrc`这句代码，并进行代码替换。代码替换图省事就直接replace，希望控制风险就用babel分析AST进行特征匹配后再替换。
+
 ## 极简pdf阅读器实现
 我们希望一个pdf阅读器有以下功能：
 1. 可以展示单页，通过jumper和上一页、下一页按钮跳转页码。
@@ -553,7 +613,7 @@ cy.get(searchResultLinksSelector)
   });
 ```
 
-提问：是否有办法只执行一次断言，即`expect(pageArray).to.deep.equal(answer)`？佬们教教我！
+提问：是否有办法只执行一次断言，即`expect(pageArray).to.deep.equal(answer)`？求佬们教教！
 
 [完整测试用例传送门](https://github1s.com/Hans774882968/file-encrypt/blob/HEAD/tests/e2e/specs/test.js)
 
@@ -758,9 +818,13 @@ class AddCopyrightPlugin {
 - `options.inspectAssets: boolean`，如果为truthy，则把`assets[fileName]`输出，方便观察我们处理之后的代码。
 - `excludes?: string | string[]`，含义和`webpack-obfuscator`的第二个参数相同。
 
-这里的关键是，我们希望代码块尽量分布于`bodyToInsert`的不同空隙，这样才能保证，两个代码块必须分别破解。于是我们设计了这么一个算法：
-- 如果代码块数量`count <= bodyToInsert.length + 1`，那么直接用`lodash`的`sampleSize`（等于python的`random.sample`）。
+我们希望代码块尽量分布于`bodyToInsert`的不同空隙，这样才能保证，两个代码块必须分别破解。但我们也希望代码块的插入位置具有随机性。简单方案：
+- 如果代码块数量`count <= bodyToInsert.length + 1`，那么直接用`lodash`的`sampleSize`（等于python的`random.sample`）取下标。
 - 否则，直接随机`count`个下标。
+
+注意：
+1. 我们是按照原来的元素个数来分配插入的下标的，那么考虑到元素的增长，插入的位置应该调整为`insertIndexes[i] + totalInsertCount`。否则不能满足顺序插入的要求。
+2. 我们自己编写了一个禁止控制台的代码块，并传入了`options.copyrightFiles`。所以`disableConsoleOutput`可以设为true了。这样我们就做到了一件事：可以在NAG代码`console.log`输出之后，再禁止控制台。
 
 ### lodash/sampleSize源码分析
 `lodash/sampleSize`源码：
@@ -810,12 +874,8 @@ export default sampleSize
 
 先深拷贝避免修改原数组，再洗牌，最后取前`n`个。洗牌算法是当前点和它后面的随机点（包括自己）进行交换，力扣有原题，可以证明每个元素处于每个位置的概率相同，复杂度`O(array.length)`。
 
-注意：
-1. 我们是按照原来的元素个数来分配插入的下标的，那么考虑到元素的增长，插入的位置应该调整为`insertIndexes[i] + totalInsertCount`。否则不能满足顺序插入的要求。
-2. 我们自己编写了一个禁止控制台的代码块，并传入了`options.copyrightFiles`。所以`disableConsoleOutput`可以设为true了。这样我们就做到了一件事：可以在NAG代码`console.log`输出之后，再禁止控制台。
-
 ### 自己实现disableConsoleOutput
-第一版实现：
+我们已经具备了在打包阶段随机插入代码的能力，因此可以考虑自行实现OB的一部分功能了。`disableConsoleOutput`的第一版实现：
 ```js
 (() => {
   Object.entries(window.console).forEach(([k, v]) => {
@@ -828,7 +888,7 @@ export default sampleSize
 
 在Chrome浏览器的控制台输入`console.log`，发现输出为`() => {}`，0基础前端都能马上发现它被动过手脚。我们希望控制台输入`console.log`和`console.log.toString()`的行为都与原有`console.log()`的无差别。那我们看看OB是怎么做的。
 
-[OB源码](https://github1s.com/javascript-obfuscator/javascript-obfuscator/blob/HEAD/src/custom-code-helpers/console-output/templates/ConsoleOutputDisableTemplate.ts)看不太懂，但这段代码有一个[相关issue](https://github.com/javascript-obfuscator/javascript-obfuscator/issues/691)。参考这些资料，我写出了如下代码：
+[OB源码传送门](https://github1s.com/javascript-obfuscator/javascript-obfuscator/blob/HEAD/src/custom-code-helpers/console-output/templates/ConsoleOutputDisableTemplate.ts)看不太懂，但这段代码有一个[相关issue](https://github.com/javascript-obfuscator/javascript-obfuscator/issues/691)。参考这些资料，我写出了如下代码：
 ```js
 /* eslint-disable no-proto */
 (() => {
@@ -867,15 +927,16 @@ traverse(inputCodeAst, {
 这个特征看上去挺合理的。`abc.console.log`等`console`不在首位的情况并不会错误地匹配这个特征。
 
 ## 编写一个webpack插件，将className替换为window.className
-将`className`替换为`window.className`这个操作的目的是让OB的混淆发挥作用，达到隐藏JS标准内置对象的目的。使用这个插件，我们就不需要自己在项目中添加`window`前缀。
+《混淆》一节提到JS标准内置对象可能快速泄露我们的关键代码，因此我们希望隐藏它们。将`className`替换为`window.className`这个操作的目的是让OB的混淆发挥作用，达到隐藏JS标准内置对象的目的。使用这个插件，我们就不需要自己手动在项目中添加`window`前缀。
 
 特征匹配：
 - 对于`new Blob([])`：当前节点`node`是`NewExpression`，且`node.callee`是`Identifier`。
 - 对于`x instanceof Uint8Array`：当前节点`node`是`BinaryExpression`，`node.operator`是`instanceof`，且`node.left`或`node.right`是`Identifier`。
 
-因为对`babel`的`path`了解太少，这里只好采用一个迂回的做法：先匹配`Identifier`，再看其`parent`是否符合上述特征。
+因为对`babel`的`path`API了解太少，这里只好采用一个迂回的做法：先匹配`Identifier`，再看其`parent`是否符合上述特征。
 
 ```js
+// 只展示关键代码
 class RemoveSensitiveInfoPlugin extends OnlyProcessJSFilePlugin {
   static classNameAddWindowPrefix(inputCode) {
     const inputCodeAst = parser.parse(inputCode);
