@@ -30,21 +30,126 @@ yarn lint
 See [Configuration Reference](https://cli.vuejs.org/config/).
 
 ## 引言
-我们可能会希望某些文件仅在查看时才解密，而明文数据总是不出现在硬盘中，类似于加壳的可执行文件。为了实现这一点，我能想到的技术栈有：前端、pyqt5（python）、qt（cpp）。我最熟悉前端技术栈，而且后两者的工作量看上去太大了，所以这个demo选择用前端技术栈实现。但在开发的过程中，我逐渐感受到前端技术栈的玩法比我想象得更多。
+我们偶尔会希望某些文件仅在查看时才解密，而明文数据总是不出现在硬盘中，类似于加壳的可执行文件。另外，我们偶尔会希望能够在浏览器预览解密所得数据。为了实现这些需求，我能想到的技术栈有：前端、pyqt5（python）、qt（cpp）。我最熟悉前端技术栈，而且后两者的工作量看上去太大了，所以这个demo选择用前端技术栈实现。但在开发的过程中，我逐渐感受到前端技术栈的玩法比我想象得更多。
 
-下面仅简单讲述实现上的注意点，其余细节佬们可查看代码，[GitHub传送门](https://github.com/Hans774882968/file-encrypt)。
+本文仅简单讲述实现上的注意点，其余细节佬们可查看代码，[GitHub传送门](https://github.com/Hans774882968/file-encrypt)。
 
-样式等方面都没有经过设计，让佬们见笑了～
+由于时间紧迫，样式等方面都没有经过设计，让佬们见笑了～
+
+技术栈：
+- 使用`vue-cli`创建项目。vue3.2 setup语法糖、webpack、jest、cypress。
+- 用babel创建AST，进行JS代码处理。
 
 ### TLDR
-1. vue3 setup CRUD。
-2. 在vue中配置webpack、webpack自定义插件的编写。`worker-loader`等loader，`WebpackObfuscator`等插件。
+1. 浏览器端使用原生JS已经可以进行任意文件处理。但如果要使用只支持node的库，如`file-encrypt`，需要借助polyfill。
+2. 在vue中配置webpack、webpack自定义插件的编写。
 3. 用Babel分析JS代码的AST，达到修改JS代码的目的。
 4. 懂得正向能让逆向更为顺利。相应地，前端可以考虑把这些可能有利于“社工”的漏洞补上。
 5. `jest`单元测试和`cypress`e2e测试的编写。
 
-## 安装file-type
-安装这个也太难受了……首先`yarn add file-type`，然后`import { fileTypeFromBuffer } from 'file-type';`，不出意外你会得到错误：
+## 文件加解密功能实现
+### 文件格式设计
+按**小端序**解析。
+
+4字节文件头 + 4字节的32位无符号整数，表示密钥的长度，记为`n` + `n`字节密钥 + 文件内容。
+
+由于之前在这方面没有经验，没有预留空间方便扩展。以后可能会设计成这样：
+
+4字节文件头 + 4字节的32位无符号整数，表示密钥的长度，记为`n` + 4字节的32位无符号整数，用于标识加密算法 + 4字节的32位无符号整数，表示原文件的大小 + 8字节待拓展位 + `n`字节密钥 + 文件内容。
+
+### 用原生JS进行任意文件处理：加密
+我们用`element-plus`输入文件
+```html
+<el-upload
+  :on-change="handleSelectFile"
+  action=""
+  :auto-upload="false"
+>
+  <el-button type="primary" :loading="handling" :disabled="handling">
+    加密文件<el-icon class="el-icon--right"><Upload /></el-icon>
+  </el-button>
+</el-upload>
+```
+
+于是`handleSelectFile`可以接收一个参数`handleSelectFile(file)`，`file.raw: File`。
+
+我们的目标是获取`Uint8Array`，故需要先将`File`转为`ArrayBuffer`，再转为`Uint8Array`。
+
+`File`转`ArrayBuffer`：
+```js
+export function fileToArrayBuffer(file) {
+  return new Promise((resolve) => {
+    const fr = new FileReader();
+    fr.readAsArrayBuffer(file);
+    fr.addEventListener('loadend', (e) => {
+      resolve(e.target.result);
+    });
+  });
+}
+
+const curArrayBuffer = await fileToArrayBuffer(file.raw);
+```
+
+`ArrayBuffer`转`Uint8Array`：
+```js
+new Uint8Array(ab)
+```
+
+我们必须支持自定义密钥功能。密钥输入时为`string`，需要将其转为`Uint8Array`。做法：
+```js
+if (typeof encryptKey === 'string') {
+  encryptKey = new TextEncoder().encode(encryptKey);
+}
+```
+
+加密完成后，需要提供保存功能。最简单的实现方式是：创建一个`a`标签，并设置其`href`和`download`属性。`href`属性是一个链接，可以用`URL.createObjectURL(resultBlob)`获取（参考链接6）。因此我们只需要将加密完成的`Uint8Array`转为`Blob`。核心代码如下：
+```js
+const resultBlob = new Blob([encryptedData]);
+
+export function downloadFile(resultBlob, fileName) {
+  const elementA = document.createElement('a');
+  elementA.setAttribute('href', URL.createObjectURL(resultBlob));
+  elementA.setAttribute('download', fileName);
+  elementA.style.display = 'none';
+  document.body.appendChild(elementA);
+  elementA.click();
+  document.body.removeChild(elementA);
+}
+```
+
+[实现代码传送门](https://github1s.com/Hans774882968/file-encrypt/blob/HEAD/src/components/Encrypt.vue)
+
+### 用原生JS进行任意文件处理：解密
+文件输入的部分同上，可获取`Uint8Array`。但我们需要先保证输入的文件是加密的格式，才能进行解密。因此我们需要实现一个判定函数：
+```js
+export function isLegalHCTFFile(ab) {
+  const u8Array = new Uint8Array(ab);
+  if (u8Array.length < 8) return false;
+  const dv = new DataView(ab instanceof Uint8Array ? ab.buffer : ab);
+  if (!isEqual(u8Array.slice(0, 4), fileHeader)) return false;
+  const keyLength = dv.getUint32(4, true);
+  if (u8Array.length - 8 < keyLength) return false;
+  return true;
+}
+```
+
+“文件格式设计”部分要求我们读取“密钥长度”，一个32位无符号整数。用`Uint8Array`已经能读取单个字节，所以可以自行实现，但更好的方式还是用`DataView`。需要注意，`DataView`的第一个参数是`ArrayBufferLike`，需要取`Uint8Array.buffer`。
+
+```js
+const dv = new DataView(ab instanceof Uint8Array ? ab.buffer : ab);
+const keyLength = dv.getUint32(4, true); // littleEndian true表示小端序
+```
+
+解密完成后，保存功能同上。
+
+我们还希望解密结果提供一些格式的数据的预览功能。对于图像、视频、音频，都可以直接接收一个`src`属性。因此和下载功能同理，我们提供一个`Blob`，再用`URL.createObjectURL(resultBlob)`获取链接即可。
+
+[实现代码传送门](https://github1s.com/Hans774882968/file-encrypt/blob/HEAD/src/components/Decrypt.vue)
+
+## 文件类型判定：安装file-type
+上文提到的预览功能，需要判定文件类型。理论上，只使用`Uint8Array`已经能完成所有文件类型判定。但我们会希望使用成熟的库，如`file-type`，来做这件事。我们可以选择在前端或在后端实现这个功能，一般来说是放在后端实现，但这里为了方便，我们选择在前端实现。虽然`file-type`提供的`fileTypeFromBuffer`方法支持输入`Uint8Array`，但依旧需要借助`polyfill`。
+
+首先`yarn add file-type`，然后`import { fileTypeFromBuffer } from 'file-type';`，不出意外你会得到错误：
 
 ```
 Syntax Error: Reading from "node:buffer" is not handled by plugins (Unhandled scheme).
@@ -75,9 +180,9 @@ You may need an additional plugin to handle "node:" URIs.
 }
 ```
 
-如果不加`resolve.fallback`，则你还会见到下一个错误：不认识`stream`。这是因为我们用的webpack版本是最新的`5.75.0`，而这个版本（webpack5）已经不提供node核心包的polyfill。我们需要自己添加`stream`的polyfill。
+如果不加`resolve.fallback`，则你还会见到下一个错误：不认识`stream`。这是因为我们用的webpack版本是最新的`5.75.0`，而这个版本（webpack5）已经不提供node核心包的`polyfill`。我们需要自己添加`stream`的`polyfill`。
 
-报错信息形如：
+这种错误的报错信息形如：
 ```
 Module not found: Error: Can't resolve 'os' in '/path-to/file-encrypt/node_modules/node-gyp-build'
 
@@ -91,15 +196,18 @@ If you don't want to include a polyfill, you can use an empty module like this:
         resolve.fallback: { "os": false }
 ```
 
+给`stream`添加`polyfill`需要的操作：
 1. 如上所述，加`resolve.fallback`。
 2. `yarn add stream-browserify`。
 
-接下来不出意外就能正常运行了。
+其他在webpack报错中指出需要`polyfill`的包进行类似操作即可。接下来不出意外就能正常运行了。
 
 ## Jest不支持导入`file-type`（未完美解决）
+需要用Jest写用到`file-type`的函数的测试用例，所以会踩到下述的坑。
+
 版本：`"file-type": "^18.0.0",`
 
-一开始是（以`strtok3`为例）：
+一开始的报错是（以`strtok3`为例）：
 
 ```
 ({"Object.<anonymous>":function(module,exports,require,__dirname,__filename,jest){import { ReadStreamTokenizer } from './ReadStreamTokenizer.js';
@@ -121,7 +229,7 @@ Cannot find module 'strtok3/core' from 'node_modules/file-type/core.js'
 
 根据上述链接，把`node_modules/file-type/core.js`的`import * as strtok3 from 'strtok3/core';`改成`import * as strtok3 from 'strtok3/lib/core';`，发现确实能解决问题。但这个解法不太好。是否给这个库发一个MR比较好？
 
-接下来`yarn build`，发现会报错：
+接下来`yarn build`，发现会产生一个之前没有的报错：
 
 ```
 Module not found: Error: Package path ./lib/core is not exported from package ./node_modules/strtok3 (see exports field in ./node_modules/strtok3/package.json)
@@ -144,9 +252,9 @@ exports: {
 2. `node_modules/file-type/core.js`的`import * as strtok3 from 'strtok3/core';`改成`import * as strtok3 from 'strtok3/lib/core';`
 3. node_modules，strtok3添加`"./lib/core": "./lib/core.js"`
 
-后续每次`yarn`重新安装依赖，都要把2和3重做一次，才能保证`yarn test:unit`、`yarn build`都正常。
+1只需要做一次。但后续每次`yarn`重新安装依赖，都要把2和3重做一次，才能保证`yarn test:unit`、`yarn build`都正常。
 
-## 实现代码预览
+## 实现代码预览和markdown渲染
 代码高亮使用门槛最低的方案：`highlight.js`。
 ```bash
 yarn add highlight.js --registry=https://registry.npm.taobao.org
@@ -181,9 +289,9 @@ nextTick(() => proxy.$hljs.highlightElement(codeBlock.value))
 yarn add utf-8-validate
 ```
 
-我们希望把node的模块用于浏览器端，势必要踩不少坑。
+我们希望把node的模块用于浏览器端，需要借助`polyfill`，势必要踩不少坑。
 
-首先webpack配置需要引入polyfill：
+首先webpack配置需要引入`polyfill`：
 ```js
 resolve: {
   fallback: {
@@ -222,7 +330,22 @@ externals: {
 
 现在看上去正常了。
 
-点击复制功能：`yarn add clipboard`，使用：
+```js
+import isValidUTF8 from 'utf-8-validate';
+export function mayBeMeaningfulText(data) {
+  return isValidUTF8(data);
+}
+```
+
+`Uint8Array`保证为utf-8格式后，就可以放心将`Uint8Array`转为`string`。
+
+```js
+decryptResultMayBeText.value = new TextDecoder().decode(decryptResult)
+```
+
+### 点击DOM元素实现复制功能
+直接用原生JS也可以实现，搜索引擎一查代码到处都有。但我们使用`clipboard`包。`yarn add clipboard`，使用：
+
 ```html
 <el-icon
   ref="iconCopy"
@@ -800,3 +923,4 @@ class RemoveSensitiveInfoPlugin extends OnlyProcessJSFilePlugin {
 3. `webpack-obfuscator`导读：https://juejin.cn/post/7115700678764265503
 4. Error: Can‘t resolve ‘fs‘ in (Webpack 5.72.0)：https://blog.csdn.net/ayong120/article/details/124665239
 5. How to Enable Private Method Syntax Proposal in React App? https://stackoverflow.com/questions/68686444/how-to-enable-private-method-syntax-proposal-in-react-app
+6. `URL.createObjectURL`：https://developer.mozilla.org/en-US/docs/Web/API/URL/createObjectURL
