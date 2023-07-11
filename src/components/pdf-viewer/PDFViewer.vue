@@ -41,32 +41,45 @@
           </el-checkbox>
         </el-row>
 
-        <el-row class="pdf-viewer-header-search">
+        <el-row
+          v-for="(currentSearchKeyword, index) in currentInputSearchKeywords"
+          :key="currentSearchKeyword.key"
+          :class="headerSearchContainerClassName(index)"
+        >
           <el-input
-            v-model="currentSearchKeyword"
+            v-model="currentSearchKeyword.text"
             class="keyword-input"
             placeholder="搜索"
             :clearable="true"
             @keyup.enter="searchTextInPDF"
           />
+          <el-select v-if="index === 0" v-model="currentSelectOperator" placeholder="请选择运算符">
+            <el-option
+              v-for="item in supportedOperators"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+          <el-icon :size="20" @click="addSearchKeywordInputField(index)">
+            <plus />
+          </el-icon>
+          <el-icon v-if="index !== 0" :size="20" @click="deleteSearchKeywordInputField(index)">
+            <delete-filled />
+          </el-icon>
           <el-tooltip
+            v-if="index === 0"
             class="item"
             effect="dark"
             placement="top"
           >
             <template #content>
-              1. 搜索框按回车触发搜索动作。<br>2. 后续会支持多个关键字查询，在任意搜索框按回车即可触发搜索动作，所有搜索框内容均为空即可跳出搜索状态。
+              1. 在任一搜索框按回车即可触发搜索动作。<br>2. 所有搜索框内容均为空时按回车即可跳出搜索状态。
             </template>
             <el-icon :size="20">
               <question-filled />
             </el-icon>
           </el-tooltip>
-          <el-icon :size="20">
-            <plus />
-          </el-icon>
-          <el-icon :size="20">
-            <delete-filled />
-          </el-icon>
         </el-row>
 
         <el-row v-if="currentState.shouldShowSearchResultPages.value" class="search-result">
@@ -108,11 +121,16 @@ import { Plus, DeleteFilled, QuestionFilled } from '@element-plus/icons-vue';
 import {
   toRefs, ref, computed,
 } from 'vue';
+import intersection from 'lodash/intersection';
+import union from 'lodash/union';
 import PdfJsEmbed from '../pdf-js-vue3-embed/PDFJSEmbed.vue';
 import {
   currentState, stateBeforeShowSearchResult, getPDFPageSelector,
 } from './pdf-viewer';
-import { loadPDFStringsOfAllPagesLazily, pdfPagesThatHaveStr } from './pdf-viewer-search';
+import {
+  loadPDFStringsOfAllPagesLazily, pdfPagesThatHaveStr, SEARCH_OPERATORS,
+  SearchKeywordRef, supportedOperators, headerSearchContainerClassName,
+} from './pdf-viewer-search';
 import PageJumper from './PageJumper.vue';
 
 const props = defineProps({
@@ -127,7 +145,8 @@ const isLoading = ref(true);
 const pageCount = ref(1);
 const currentPage = ref(1);
 const currentSearchResultPages = ref([]);
-const currentSearchKeyword = ref('');
+const currentInputSearchKeywords = ref([new SearchKeywordRef()]);
+const currentSelectOperator = ref(SEARCH_OPERATORS.INTERSECTION);
 const pdfWidth = ref(1600);
 const pdfPageContainerStyle = ref({
   marginBottom: '16px',
@@ -155,6 +174,14 @@ function scrollToSearchResultPage(searchResultPage) {
   scrollToPage(searchResultPage);
 }
 
+function addSearchKeywordInputField(index) {
+  currentInputSearchKeywords.value.splice(index + 1, 0, new SearchKeywordRef());
+}
+
+function deleteSearchKeywordInputField(index) {
+  currentInputSearchKeywords.value.splice(index, 1);
+}
+
 function searchTextInPDF() {
   // 每次使用搜索功能都需要记录 currentPage showPagesStateBeforeShowSearchResult
   currentState.meta.lastPageNumber = currentPage.value;
@@ -172,20 +199,38 @@ function searchTextInPDF() {
     }
   };
 
-  if (!currentSearchKeyword.value) {
+  const searchKeywords = currentInputSearchKeywords.value.map((o) => o.text).filter((s) => s.length);
+  if (!searchKeywords.length) {
     gotoLastState();
     return;
   }
 
-  const pageNums = pdfPagesThatHaveStr(currentSearchKeyword.value, pageCount);
-  if (!pageNums.length) {
+  const pageNumsArray = searchKeywords.map((searchKeyword) => {
+    const pageNums = pdfPagesThatHaveStr(searchKeyword, pageCount);
+    return pageNums;
+  });
+
+  const getSearchResultPages = (pageNumsArr) => {
+    if (currentSelectOperator.value === SEARCH_OPERATORS.INTERSECTION) {
+      return intersection(...pageNumsArr);
+    }
+    if (currentSelectOperator.value === SEARCH_OPERATORS.UNION) {
+      const searchResultPages = union(...pageNumsArr);
+      return searchResultPages.sort((x, y) => x - y);
+    }
+    return [];
+  };
+
+  const searchResultPages = getSearchResultPages(pageNumsArray);
+
+  if (!searchResultPages.length) {
     ElMessage.success('未找到结果');
     gotoLastState();
     return;
   }
 
   currentState.changeToShowSearchResultPagesState();
-  currentSearchResultPages.value = pageNums;
+  currentSearchResultPages.value = searchResultPages;
 }
 
 const shouldShowAllPagesModel = computed({

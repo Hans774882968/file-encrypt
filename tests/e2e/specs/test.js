@@ -1,6 +1,8 @@
 // https://docs.cypress.io/api/table-of-contents
 import shuffle from 'lodash/shuffle';
 import sample from 'lodash/sample';
+// import intersection from 'lodash/intersection';
+// import { headerSearchContainerClassName } from '@/components/pdf-viewer/pdf-viewer-search';
 
 // The following tests require file 新冠自我康复手册中文版-WHO-7轮.hctf which is an encrypted pdf.
 const encryptedPDFPath = '新冠自我康复手册中文版-WHO-7轮.hctf';
@@ -60,6 +62,24 @@ describe('PDFViewer', () => {
   function scrollToPageNumber(page) {
     cy.get(allPagesJumperSelector).clear().type(`${page}{enter}`, { force: true });
   }
+
+  // TODO：为多关键字搜索编写测试用例
+  // function searchMultipleKeywords() {
+  //   const answerList = [];
+  //   cy.get(keywordInputSelector).each(($input) => {
+  //     const { keyword: text, answer } = sample(SEARCH_KEYWORDS_HAVE_RESULT_Q_A);
+  //     answerList.push(answer);
+  //     $input.forceInputWithoutEnter(text);
+  //   });
+  //   cy.get(keywordInputSelector).pressEnter();
+
+  //   const answer = intersection(...answerList);
+  //   cy.get(searchResultLinksSelector)
+  //     .each((link, i) => {
+  //       const page = Number(link.text());
+  //       expect(page).to.equal(answer[i]);
+  //     });
+  // }
 
   function searchKeywordsThatHaveResult() {
     const { keyword: text, answer } = sample(SEARCH_KEYWORDS_HAVE_RESULT_Q_A);

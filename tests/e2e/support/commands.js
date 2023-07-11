@@ -40,3 +40,15 @@ Cypress.Commands.add(
   { prevSubject: 'element' },
   (element, text) => cy.wrap(element).clear().type(`${text}{enter}`, { force: true }),
 );
+
+Cypress.Commands.add(
+  'forceInputWithoutEnter',
+  { prevSubject: 'element' },
+  (element, text) => cy.wrap(element).clear().type(text, { force: true }),
+);
+
+Cypress.Commands.add(
+  'pressEnter',
+  { prevSubject: 'element' },
+  (element) => cy.wrap(element).type('{enter}', { force: true }),
+);

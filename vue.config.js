@@ -11,15 +11,17 @@ const workerRelativePath = path.join('js', '**.worker.js');
 
 function getObfuscatePlugins() {
   const excludes = [chunkVendorsRelativePath, workerRelativePath];
+  const inspectAssets = !!process.env.INSPECT_ASSETS;
+  const debugProtection = !!process.env.DEBUG_PROTECTION;
   return process.env.NODE_ENV === 'production' ? [
     new AddCopyrightPlugin({
       copyrightFiles: [
         'copyright-print.js', 'copyright-nag.js', 'disable-console-output.js',
       ],
-      inspectAssets: true,
+      inspectAssets,
     }, excludes),
     new RemoveSensitiveInfoPlugin({
-      inspectAssets: true,
+      inspectAssets,
     }, excludes),
     new WebpackObfuscator({
       compact: true,
@@ -27,7 +29,7 @@ function getObfuscatePlugins() {
       controlFlowFlatteningThreshold: 0.75,
       deadCodeInjection: true,
       deadCodeInjectionThreshold: 0.4,
-      debugProtection: false,
+      debugProtection,
       debugProtectionInterval: 2000,
       disableConsoleOutput: false,
       domainLock: [],

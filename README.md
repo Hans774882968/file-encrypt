@@ -906,9 +906,9 @@ export default sampleSize
 })();
 ```
 
-这段代码在Safari表现正常，但在Chrome中，输入`console.log`得`ƒ () {}`。上述issue把它解释为“bug”，但我认为这意味着我们的代码还需要改进。
+这段代码在Safari表现正常，但在Chrome中，输入`console.log`得`ƒ () {}`。看来我们的代码还需要改进。
 
-为了增大发现这段代码的难度，并避免自己手动把`Object.entries`改为`window.Object.entries`，我改进了一下`remove-sensitive-info-plugin.js`：
+另外，为了增大发现这段代码的难度，并避免自己手动把`Object.entries`改为`window.Object.entries`，我改进了一下`remove-sensitive-info-plugin.js`：
 ```js
 // 伪代码
 traverse(inputCodeAst, {
@@ -969,13 +969,15 @@ class RemoveSensitiveInfoPlugin extends OnlyProcessJSFilePlugin {
 ```
 
 最后，因为OB早就被各位前端逆向佬们研究透彻了，所以给大家一道简单题：
-1. 对打包后的资源，使用Chrome Sources面板的替换功能，去除所有产生NAG的代码。
-2. 找到文件加密和解密的关键函数。
+1. 对打包后的资源，使用Chrome Sources面板的替换功能，去除所有产生NAG的代码（非常简单）。
+2. 找到文件加密和解密的关键函数（可能有难度？）。
+
+[传送门]() TODO：添加传送门
 
 ## TODO
 1. 支持flv播放。
 2. 支持加密方法的选择。但是因为设计文件格式时没有预留位置，只能放弃了。
-3. PDF阅读器支持多个关键字查询、e2e测试支持“随机游走”（即生成一个状态序列，根据状态的转变来写断言）。
+3. PDF阅读器支持多个关键字查询、放大缩小；e2e测试支持“随机游走”（即生成一个状态序列，根据状态的转变来写断言）。
 4. 可执行文件（exe、dll、elf）的基本信息展示、hex viewer。
 
 ## 参考资料
@@ -985,3 +987,4 @@ class RemoveSensitiveInfoPlugin extends OnlyProcessJSFilePlugin {
 4. Error: Can‘t resolve ‘fs‘ in (Webpack 5.72.0)：https://blog.csdn.net/ayong120/article/details/124665239
 5. How to Enable Private Method Syntax Proposal in React App? https://stackoverflow.com/questions/68686444/how-to-enable-private-method-syntax-proposal-in-react-app
 6. `URL.createObjectURL`：https://developer.mozilla.org/en-US/docs/Web/API/URL/createObjectURL
+7. Vue3 实现 PDF 文件在线预览功能：https://juejin.cn/post/7105933034771185701

@@ -1,5 +1,26 @@
 import { ref } from 'vue';
 
+export const headerSearchContainerClassName = (index) => `pdf-viewer-header-search pdf-viewer-header-search-${index}`;
+
+export class SearchKeywordRef {
+  static key = 1
+
+  constructor() {
+    this.text = '';
+    this.key = ++SearchKeywordRef.key;
+  }
+}
+
+export const SEARCH_OPERATORS = {
+  INTERSECTION: 11,
+  UNION: 21,
+};
+
+export const supportedOperators = [
+  { value: SEARCH_OPERATORS.INTERSECTION, label: '交集' },
+  { value: SEARCH_OPERATORS.UNION, label: '并集' },
+];
+
 const pdfStringsOfAllPages = ref([]);
 let lastPDFDocument = null;
 
